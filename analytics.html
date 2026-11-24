@@ -1,0 +1,534 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Booth Analytics</title>
+<style>
+:root{color-scheme:light;--bg:#f4f3f0;--surface:#fcfcfb;--line:#e4e2dc;--grid:#ebe9e4;--text:#0b0b0b;--text2:#52514e;--muted:#6f6d68;--s1:#2a78d6;--s2:#eb6834;--good:#0a7a3c;--warn:#9a5600;--bad:#c4302f;--accent:#e8577d;--on-accent:#fff}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#121211;--surface:#1a1a19;--line:#2c2b29;--grid:#262523;--text:#f0efec;--text2:#c3c2b7;--muted:#98968f;--s1:#3987e5;--s2:#d95926;--good:#4cc27f;--warn:#e6a23c;--bad:#ef6b6a}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#121211;--surface:#1a1a19;--line:#2c2b29;--grid:#262523;--text:#f0efec;--text2:#c3c2b7;--muted:#98968f;--s1:#3987e5;--s2:#d95926;--good:#4cc27f;--warn:#e6a23c;--bad:#ef6b6a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+button,input,select{font:inherit;color:inherit}
+header.top{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+.wrap{max-width:1100px;margin:0 auto;padding:0 16px}
+.bar{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;padding:12px 0}
+.bar h1{font-size:18px;margin:0 auto 0 0;white-space:nowrap}
+.bar h1 span{color:var(--accent)}
+select,input[type=text],input[type=number],input[type=date],input[type=password]{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 10px;min-height:36px;max-width:100%}
+button{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 12px;min-height:36px;cursor:pointer}
+button:hover{border-color:var(--muted)}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:600}
+button.link{border:0;background:none;color:var(--text2);text-decoration:underline;padding:4px}
+nav.tabs{display:flex;gap:4px;overflow-x:auto}
+nav.tabs button{border:0;border-bottom:2px solid transparent;border-radius:0;background:none;color:var(--text2);padding:8px 12px;white-space:nowrap}
+nav.tabs button[aria-selected=true]{color:var(--text);border-bottom-color:var(--accent);font-weight:600}
+main{padding:18px 0 60px}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.cards{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));margin-top:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;min-width:0}
+.card.wide{grid-column:1/-1}
+.card h2{font-size:14px;margin:0 0 2px;color:var(--text2);font-weight:600}
+.card .sub{font-size:13px;color:var(--muted);margin:0 0 10px}
+.kpi .v{font-size:30px;font-weight:700;letter-spacing:-.5px;line-height:1.2;font-variant-numeric:tabular-nums}
+.kpi .l{font-size:13px;color:var(--text2)}
+.kpi .s{font-size:13px;color:var(--muted)}
+.row{display:grid;grid-template-columns:minmax(80px,38%) 1fr auto;gap:8px;align-items:center;padding:4px 0;font-size:14px}
+.row .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+.row .t{background:var(--grid);height:10px;border-radius:5px;overflow:hidden}
+.row .t i{display:block;height:100%;background:var(--s1);border-radius:5px;min-width:2px}
+.row .t i.b{background:var(--s2)}
+.row .c{font-variant-numeric:tabular-nums;color:var(--text2);min-width:2.5em;text-align:right}
+.empty{color:var(--muted);font-size:14px;padding:6px 0}
+svg text{fill:var(--muted);font-size:11px;font-family:inherit}
+svg .g{stroke:var(--grid);stroke-width:1}
+svg .hit{fill:transparent}
+svg .hit:hover{fill:var(--grid);opacity:.6}
+.legend{display:flex;gap:14px;font-size:13px;color:var(--text2);margin-bottom:6px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+details{margin-top:8px;font-size:13px;color:var(--text2)}
+details table{margin-top:6px}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:right;padding:8px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{font-size:12px;color:var(--muted);font-weight:600}
+.scroll{overflow-x:auto}
+tr.clk{cursor:pointer}
+tr.clk:hover td{background:var(--grid)}
+.badge{display:inline-block;font-size:12px;padding:1px 8px;border-radius:999px;border:1px solid currentColor}
+.good{color:var(--good)}.warn{color:var(--warn)}.bad{color:var(--bad)}
+#tip{position:fixed;z-index:50;pointer-events:none;background:var(--text);color:var(--bg);padding:5px 9px;border-radius:7px;font-size:13px;max-width:260px;display:none;white-space:pre-line}
+.login{max-width:380px;margin:12vh auto 0;padding:0 16px}
+.login .card{padding:22px}
+.login h1{margin:0 0 4px;font-size:22px}
+.login label{display:block;margin:12px 0 4px;font-size:13px;color:var(--text2)}
+.login input{width:100%}
+.err{color:var(--bad);min-height:1.3em;font-size:14px;margin:8px 0 0}
+dialog{border:1px solid var(--line);border-radius:14px;background:var(--surface);color:var(--text);padding:0;width:min(560px,calc(100vw - 24px))}
+dialog::backdrop{background:rgba(0,0,0,.5)}
+dialog form{padding:18px;display:grid;gap:10px}
+dialog h2{margin:0 0 4px;font-size:18px}
+dialog label{display:grid;gap:3px;font-size:13px;color:var(--text2)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.crow{display:grid;grid-template-columns:1fr 110px 36px;gap:6px;margin-bottom:6px}
+.acts{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:6px}
+.hint{font-size:13px;color:var(--muted)}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+[hidden]{display:none!important}
+@media (max-width:560px){.cards{grid-template-columns:1fr}.kpi .v{font-size:26px}.two{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div id="loginView" class="login" hidden>
+  <div class="card">
+    <h1>Booth <span style="color:var(--accent)">Analytics</span></h1>
+    <p class="hint" id="loginHint">Enter the staff PIN from the booth settings.</p>
+    <form id="loginForm">
+      <div id="cloudFields" hidden>
+        <label for="cUrl">Supabase project URL</label><input id="cUrl" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://abcdefghijkl.supabase.co">
+        <label for="cKey">Publishable key</label><input id="cKey" type="text" autocomplete="off" spellcheck="false" placeholder="sb_publishable_…">
+      </div>
+      <label for="pin">Staff PIN</label><input id="pin" type="password" inputmode="numeric" autocomplete="off">
+      <p class="err" id="loginErr" role="alert"></p>
+      <button class="primary" style="width:100%;margin-top:6px">Open analytics</button>
+    </form>
+  </div>
+</div>
+
+<div id="appView" hidden>
+<header class="top"><div class="wrap">
+  <div class="bar">
+    <h1>Booth <span>Analytics</span></h1>
+    <select id="fEvent" aria-label="Event"></select>
+    <select id="fRange" aria-label="Date range">
+      <option value="all">All time</option><option value="today">Today</option><option value="7">Last 7 days</option>
+      <option value="30">Last 30 days</option><option value="month">This month</option><option value="custom">Custom…</option>
+    </select>
+    <span id="fCustom" hidden><input type="date" id="fFrom" aria-label="From"> – <input type="date" id="fTo" aria-label="To"></span>
+    <button id="btnRefresh" title="Reload the figures">Refresh</button>
+    <button id="btnTheme" title="Switch light and dark">◐</button>
+  </div>
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="over" aria-selected="true">Overview</button>
+    <button role="tab" data-tab="money" aria-selected="false">Events &amp; money</button>
+    <button role="tab" data-tab="cmp" aria-selected="false">Compare</button>
+  </nav>
+</div></header>
+
+<main class="wrap">
+  <section id="tab-over"></section>
+  <section id="tab-money" hidden></section>
+  <section id="tab-cmp" hidden></section>
+  <p class="hint" id="stamp" style="margin-top:18px"></p>
+</main>
+</div>
+
+<dialog id="jobDlg"><form method="dialog" id="jobForm"></form></dialog>
+<div id="tip"></div>
+
+<script>
+(function(){
+'use strict';
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+const sess={get(k){try{return sessionStorage.getItem(k)}catch(e){return null}},set(k,v){try{sessionStorage.setItem(k,v)}catch(e){}},del(k){try{sessionStorage.removeItem(k)}catch(e){}}};
+const MODE_NAMES={strip:'Photo strip',grid:'Grid',single:'Single',gif:'GIF',boom:'Boomerang',scribble:'Scribble'};
+const modeName=m=>MODE_NAMES[m]||(m?m[0].toUpperCase()+m.slice(1):'Unknown');
+const STEPS={ready:'Camera screen',work:'Making the photo',review:'Results',attract:'Start screen',pick:'Choosing a mode',design:'Choosing a design',unknown:'Unknown'};
+
+let MODE='local',CFG={},PIN='',DATA={events:[],jobs:[]},ALL=null,tab='over',timer=0;
+try{CFG=JSON.parse(store.get('an.cfg')||'{}')||{}}catch(e){CFG={}}
+let CUR=store.get('an.cur');if(CUR==null)CUR='$';
+
+/* ---------- formatting ---------- */
+const nf=new Intl.NumberFormat();
+const money=n=>{const v=Math.round(Math.abs(n||0)*100)/100;return(n<0&&v?'-':'')+CUR+v.toLocaleString(undefined,{minimumFractionDigits:Number.isInteger(v)?0:2,maximumFractionDigits:2})};
+const pct=(a,b)=>b?Math.round(100*a/b)+'%':'–';
+function dur(s){if(s==null||isNaN(s))return '–';s=Math.round(s);const m=Math.floor(s/60);return m?m+'m '+String(s%60).padStart(2,'0')+'s':s+'s'}
+const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
+const num=v=>{const n=parseFloat(v);return isFinite(n)?n:0};
+const ymd=t=>{const d=new Date(t),p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())};
+
+/* ---------- data access: the booth laptop (local) or Supabase (online) ---------- */
+function cloudHeaders(){const h={apikey:CFG.key,'Content-Type':'application/json'};if(/^eyJ/.test(CFG.key||''))h.Authorization='Bearer '+CFG.key;return h}
+async function rpc(fn,body){
+  const r=await fetch(CFG.url+'/rest/v1/rpc/'+fn,{method:'POST',headers:cloudHeaders(),body:JSON.stringify(body)});
+  if(!r.ok){const t=await r.text().catch(()=>'');const e=new Error(/wrong pin/i.test(t)?'pin':(t.slice(0,200)||'HTTP '+r.status));e.status=r.status;throw e}
+  return r.json();
+}
+async function loadData(){
+  if(MODE==='local'){
+    const h={'X-Pin':PIN};
+    const a=await fetch('/api/stats',{headers:h});if(a.status===401)throw new Error('pin');if(!a.ok)throw new Error('HTTP '+a.status);
+    const b=await fetch('/api/stats/jobs',{headers:h});
+    DATA={events:(await a.json()).events||[],jobs:b.ok?((await b.json()).jobs||[]):[]};
+  }else{
+    const j=await rpc('stats_read',{p_pin:PIN});DATA={events:j.events||[],jobs:j.jobs||[]};
+  }
+  ALL=build(DATA.events);
+}
+async function saveJobs(list){
+  DATA.jobs=list;
+  if(MODE==='local'){const r=await fetch('/api/stats/jobs',{method:'POST',headers:{'X-Pin':PIN,'Content-Type':'application/json'},body:JSON.stringify(list)});if(!r.ok)throw new Error('Could not save')}
+  else await rpc('jobs_save',{p_pin:PIN,p_jobs:list});
+}
+
+/* ---------- turning raw records into sessions ---------- */
+function build(events){
+  const bySid=new Map();events.forEach(e=>{if(e.sid&&e.ses)bySid.set(e.sid,e.ses)});
+  const map=new Map(),walks=[];
+  const get=k=>{let s=map.get(k);if(!s){s={id:k,printOk:0,printFail:0,copies:0,saves:0,shares:0,qrShown:false,qrOpen:0,downloads:0,upFail:0,fails:[],printers:{}};map.set(k,s)}return s};
+  for(const e of events){
+    if(e.type==='walkaway'){walks.push(e);continue}
+    const k=e.ses||bySid.get(e.sid);if(!k)continue;
+    const s=get(k),d=e.d||{};
+    switch(e.type){
+      case 'session_start':s.start=e;break;
+      case 'session_done':s.done=e;break;
+      case 'session_end':s.end=e;break;
+      case 'abandon':s.abandon=e;break;
+      case 'qr_shown':s.qrShown=true;break;
+      case 'qr_open':s.qrOpen++;break;
+      case 'download':s.downloads++;break;
+      case 'save':s.saves++;break;
+      case 'share':s.shares++;break;
+      case 'upload_fail':s.upFail++;s.fails.push({ts:e.ts,kind:'Upload',msg:d.reason||'Upload failed',event:e.event});break;
+      case 'print':
+        if(d.ok){s.printOk++;s.copies+=num(d.copies)||1;const p=d.printer||'Unknown printer';s.printers[p]=(s.printers[p]||0)+(num(d.copies)||1)}
+        else{s.printFail++;s.fails.push({ts:e.ts,kind:'Print',msg:d.err||'Print failed',event:e.event})}
+        break;
+    }
+  }
+  const sessions=[...map.values()].filter(s=>s.start).map(s=>{
+    const d=s.start.d||{};
+    s.ts=s.start.ts;s.event=s.start.event||'';s.mode=d.mode||'';s.design=d.design||'';
+    s.status=s.done?'done':s.abandon?'abandon':(Date.now()-s.ts<10*60000?'live':'abandon');
+    s.total=s.end&&s.end.d?num(s.end.d.total):null;
+    s.shoot=s.done&&s.done.d&&s.done.d.dur!=null?num(s.done.d.dur):null;
+    s.step=s.abandon&&s.abandon.d?s.abandon.d.step||'unknown':'unknown';
+    s.retake=!!(s.end&&s.end.d&&s.end.d.why==='retake');
+    return s;
+  }).sort((a,b)=>a.ts-b.ts);
+  return{sessions,walks};
+}
+
+/* ---------- filters ---------- */
+function range(){
+  const v=$('#fRange').value,now=new Date(),day=new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime();
+  if(v==='today')return[day,Infinity];
+  if(v==='7')return[day-6*864e5,Infinity];
+  if(v==='30')return[day-29*864e5,Infinity];
+  if(v==='month')return[new Date(now.getFullYear(),now.getMonth(),1).getTime(),Infinity];
+  if(v==='custom'){const f=$('#fFrom').value,t=$('#fTo').value;return[f?new Date(f+'T00:00:00').getTime():-Infinity,t?new Date(t+'T23:59:59').getTime():Infinity]}
+  return[-Infinity,Infinity];
+}
+const eventSel=()=>$('#fEvent').value;
+const sameEv=(a,b)=>String(a||'').trim().toLowerCase()===String(b||'').trim().toLowerCase();
+function filtered(ignoreEvent){
+  const[a,b]=range(),ev=ignoreEvent?'':eventSel();
+  return{
+    sessions:ALL.sessions.filter(s=>s.ts>=a&&s.ts<=b&&(!ev||sameEv(s.event,ev))),
+    walks:ALL.walks.filter(w=>w.ts>=a&&w.ts<=b&&(!ev||sameEv(w.event,ev)))};
+}
+function eventNames(){
+  const set=new Map();
+  const add=n=>{n=String(n||'').trim();if(n&&!set.has(n.toLowerCase()))set.set(n.toLowerCase(),n)};
+  ALL.sessions.forEach(s=>add(s.event));DATA.jobs.forEach(j=>add(j.name));
+  return[...set.values()].sort((a,b)=>a.localeCompare(b));
+}
+
+/* ---------- numbers ---------- */
+function stats(list,walks){
+  const n=list.length,done=list.filter(s=>s.status==='done'),
+    tot=list.map(s=>s.total).filter(x=>x!=null),sh=list.map(s=>s.shoot).filter(x=>x!=null);
+  const hours=Array(24).fill(0),modes={},designs={},printers={},fails=[],stepCnt={};
+  let prints=0,pFail=0,saves=0,shares=0,retakes=0,qrShown=0,qrOpen=0,dl=0,upFail=0,abandoned=0;
+  for(const s of list){
+    hours[new Date(s.ts).getHours()]++;
+    modes[s.mode]=(modes[s.mode]||0)+1;
+    const dn=(s.design?s.design+' · ':'')+modeName(s.mode);designs[dn]=(designs[dn]||0)+1;
+    prints+=s.copies;pFail+=s.printFail;saves+=s.saves;shares+=s.shares;upFail+=s.upFail;
+    if(s.retake)retakes++;if(s.qrShown)qrShown++;if(s.qrOpen)qrOpen++;if(s.downloads)dl++;
+    for(const p in s.printers)printers[p]=(printers[p]||0)+s.printers[p];
+    fails.push(...s.fails);
+    if(s.status==='abandon'){abandoned++;const st=STEPS[s.step]||s.step;stepCnt[st]=(stepCnt[st]||0)+1}
+  }
+  if(walks.length)stepCnt['Left before shooting']=walks.length;
+  return{n,done:done.length,abandoned,walk:walks.length,avgTotal:avg(tot),avgShoot:avg(sh),hours,modes,designs,printers,prints,pFail,saves,shares,retakes,qrShown,qrOpen,dl,upFail,
+    fails:fails.sort((a,b)=>b.ts-a.ts),stepCnt};
+}
+/* prints per event over all time: what the print price is charged on */
+function printsFor(name){let n=0;for(const s of ALL.sessions)if(sameEv(s.event,name))n+=s.copies;return n}
+function jobCalc(j){
+  const prints=printsFor(j.name),inc=num(j.included),extra=Math.max(0,prints-inc),
+    printRev=extra*num(j.price),rev=num(j.fee)+printRev,
+    others=(j.costs||[]).reduce((t,c)=>t+num(c.a),0),media=prints*num(j.media),cost=media+others,
+    paid=num(j.paid),owed=Math.max(0,rev-paid);
+  return{prints,extra,printRev,rev,media,others,cost,profit:rev-cost,paid,owed,
+    state:rev<=0?'none':owed<=0.005?'paid':paid>=num(j.deposit)&&paid>0?'deposit':'unpaid'};
+}
+function jobsShown(){
+  const[a,b]=range(),ev=eventSel();
+  return DATA.jobs.filter(j=>{
+    if(ev&&!sameEv(j.name,ev))return false;
+    if(!j.date)return $('#fRange').value==='all'||!!ev;
+    const t=new Date(j.date+'T12:00:00').getTime();return t>=a&&t<=b;
+  });
+}
+
+/* ---------- small chart pieces ---------- */
+function bars(items,opts){
+  opts=opts||{};if(!items.length)return '<p class="empty">'+esc(opts.empty||'Nothing yet.')+'</p>';
+  const max=Math.max(...items.map(i=>i[1]),1);
+  return items.map(([l,v,tip])=>`<div class="row" data-tip="${esc(tip||l+': '+nf.format(v))}"><span class="n">${esc(l)}</span><span class="t"><i class="${opts.cls||''}" style="width:${Math.max(1.5,100*v/max)}%"></i></span><span class="c">${opts.fmt?opts.fmt(v):nf.format(v)}</span></div>`).join('');
+}
+function topN(obj,n){
+  const a=Object.entries(obj).sort((x,y)=>y[1]-x[1]);if(a.length<=n)return a;
+  const rest=a.slice(n-1).reduce((t,x)=>t+x[1],0);return a.slice(0,n-1).concat([['Other',rest]]);
+}
+function niceMax(v){if(v<=4)return 4;const p=Math.pow(10,Math.floor(Math.log10(v))),f=v/p;return(f<=1?1:f<=2?2:f<=5?5:10)*p}
+function hoursChart(h){
+  const W=720,H=170,L=30,B=22,T=8,max=niceMax(Math.max(...h,1)),bw=(W-L)/24,ih=H-B-T;
+  let g='',b='',x='';
+  for(const f of [0,.5,1]){const y=T+ih*(1-f);g+=`<line class="g" x1="${L}" x2="${W}" y1="${y}" y2="${y}"/><text x="${L-6}" y="${y+4}" text-anchor="end">${Math.round(max*f)}</text>`}
+  h.forEach((v,i)=>{
+    const x0=L+i*bw,bh=ih*v/max,lab=String(i).padStart(2,'0')+':00';
+    if(v)b+=`<rect x="${x0+bw*.18}" y="${T+ih-bh}" width="${bw*.64}" height="${bh}" rx="3" fill="var(--s1)"/>`;
+    b+=`<rect class="hit" x="${x0}" y="${T}" width="${bw}" height="${ih}" data-tip="${lab}: ${v} session${v===1?'':'s'}"/>`;
+    if(i%3===0)x+=`<text x="${x0+bw/2}" y="${H-6}" text-anchor="middle">${i}</text>`;
+  });
+  const table=`<details><summary>Show as table</summary><div class="scroll"><table><tr><th>Hour</th><th>Sessions</th></tr>${h.map((v,i)=>v?`<tr><td>${String(i).padStart(2,'0')}:00</td><td>${v}</td></tr>`:'').join('')}</table></div></details>`;
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Sessions by hour of the day">${g}${b}${x}</svg>`+table;
+}
+function monthChart(jobs){
+  const by={};
+  for(const j of jobs){if(!j.date)continue;const m=j.date.slice(0,7),c=jobCalc(j);(by[m]=by[m]||{rev:0,cost:0,profit:0});by[m].rev+=c.rev;by[m].cost+=c.cost;by[m].profit+=c.profit}
+  const ms=Object.keys(by).sort().slice(-12);if(!ms.length)return '<p class="empty">Add events with a date to see monthly income.</p>';
+  const W=720,H=200,L=44,B=24,T=8,ih=H-B-T,max=niceMax(Math.max(...ms.map(m=>Math.max(by[m].rev,by[m].cost)),1)),bw=(W-L)/ms.length;
+  let g='',b='';
+  for(const f of [0,.5,1]){const y=T+ih*(1-f);g+=`<line class="g" x1="${L}" x2="${W}" y1="${y}" y2="${y}"/><text x="${L-6}" y="${y+4}" text-anchor="end">${esc(CUR)}${nf.format(Math.round(max*f))}</text>`}
+  ms.forEach((m,i)=>{
+    const x0=L+i*bw,r=by[m],rh=ih*r.rev/max,ch=ih*r.cost/max,w=Math.min(26,bw*.34),cx=x0+bw/2,
+      d=new Date(m+'-01T12:00:00'),lab=d.toLocaleString(undefined,{month:'short'})+' '+(ms.length>6?"’"+String(d.getFullYear()).slice(2):d.getFullYear());
+    b+=`<rect x="${cx-w-1}" y="${T+ih-rh}" width="${w}" height="${rh}" rx="3" fill="var(--s1)"/><rect x="${cx+1}" y="${T+ih-ch}" width="${w}" height="${ch}" rx="3" fill="var(--s2)"/>`;
+    b+=`<rect class="hit" x="${x0}" y="${T}" width="${bw}" height="${ih}" data-tip="${esc(lab)}\nIncome ${esc(money(r.rev))}\nCosts ${esc(money(r.cost))}\nProfit ${esc(money(r.profit))}"/><text x="${cx}" y="${H-7}" text-anchor="middle">${esc(lab)}</text>`;
+  });
+  const table=`<details><summary>Show as table</summary><div class="scroll"><table><tr><th>Month</th><th>Income</th><th>Costs</th><th>Profit</th></tr>${ms.map(m=>`<tr><td>${m}</td><td>${money(by[m].rev)}</td><td>${money(by[m].cost)}</td><td>${money(by[m].profit)}</td></tr>`).join('')}</table></div></details>`;
+  return `<div class="legend"><span><i style="background:var(--s1)"></i>Income</span><span><i style="background:var(--s2)"></i>Costs</span></div><svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Income and costs by month">${g}${b}</svg>`+table;
+}
+const kpi=(l,v,s,cls)=>`<div class="card kpi"><div class="l">${esc(l)}</div><div class="v ${cls||''}">${v}</div><div class="s">${s||'&nbsp;'}</div></div>`;
+
+/* ---------- tabs ---------- */
+function renderOver(){
+  const f=filtered(),S=stats(f.sessions,f.walks),jobs=jobsShown(),calc=jobs.map(jobCalc),el=$('#tab-over');
+  const rev=calc.reduce((t,c)=>t+c.rev,0),cost=calc.reduce((t,c)=>t+c.cost,0),owed=calc.reduce((t,c)=>t+c.owed,0);
+  let h='<div class="grid">';
+  h+=kpi('Total sessions',nf.format(S.n),`${S.done} completed · ${pct(S.done,S.n)}`);
+  h+=kpi('Average session',dur(S.avgTotal),S.avgShoot!=null?`${dur(S.avgShoot)} to take and develop`:'');
+  h+=kpi('Prints',nf.format(S.prints),S.pFail?`<span class="bad">⚠ ${S.pFail} failed</span>`:'no failed prints');
+  h+=kpi('Guests who opened their link',S.qrShown?pct(S.qrOpen,S.qrShown):'–',S.qrShown?`${S.qrOpen} of ${S.qrShown} with a QR · ${S.dl} saved`:'No QR codes shown yet');
+  h+='</div>';
+  if(jobs.length){
+    h+='<div class="grid" style="margin-top:12px">';
+    h+=kpi('Income',money(rev),`${jobs.length} event${jobs.length===1?'':'s'}`);
+    h+=kpi('Costs',money(cost));
+    h+=kpi('Profit',money(rev-cost),'',rev-cost<0?'bad':'');
+    h+=kpi('Still owed',money(owed),owed>0?'<span class="warn">⚠ unpaid balance</span>':'all paid',owed>0?'warn':'');
+    h+='</div>';
+  }else h+='<p class="hint" style="margin:12px 0 0">Add your events and prices under <b>Events &amp; money</b> to see income, costs and profit here.</p>';
+  h+='<div class="cards">';
+  h+=`<div class="card wide"><h2>Busiest hours</h2><p class="sub">Sessions started in each hour of the day</p>${S.n?hoursChart(S.hours):'<p class="empty">No sessions in this range yet.</p>'}</div>`;
+  h+=`<div class="card"><h2>Popular layouts</h2><p class="sub">Print design and mode chosen</p>${bars(topN(S.designs,8),{empty:'No sessions yet.'})}</div>`;
+  h+=`<div class="card"><h2>Modes</h2><p class="sub">What guests picked</p>${bars(topN(Object.fromEntries(Object.entries(S.modes).map(([k,v])=>[modeName(k),v])),8),{empty:'No sessions yet.'})}</div>`;
+  h+=`<div class="card"><h2>Guest engagement</h2><p class="sub">Of the sessions in this range</p>${bars([
+    ['Sessions',S.n],['Finished',S.done],['Shown a QR code',S.qrShown],['Opened their link',S.qrOpen],['Saved a photo',S.dl]
+    ],{fmt:v=>nf.format(v)+' · '+pct(v,S.n)})}
+    <p class="hint" style="margin:10px 0 0">${S.saves} Save and ${S.shares} Share taps on the booth · ${S.retakes} guest${S.retakes===1?'':'s'} went again</p></div>`;
+  h+=`<div class="card"><h2>Prints</h2><p class="sub">Sheets sent to each printer</p>${bars(topN(S.printers,6),{empty:'No prints yet.'})}</div>`;
+  h+=`<div class="card"><h2>Drop-offs and failures</h2><p class="sub">Where guests left, and what went wrong</p>${bars(Object.entries(S.stepCnt).sort((a,b)=>b[1]-a[1]),{cls:'b',empty:'Nobody dropped off.'})}
+    ${S.fails.length?`<details open><summary>${S.fails.length} failure${S.fails.length===1?'':'s'} (latest first)</summary><div class="scroll"><table>${S.fails.slice(0,8).map(x=>`<tr><td>${esc(x.kind)}</td><td style="white-space:normal;text-align:left">${esc(x.msg)}</td><td>${new Date(x.ts).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</td></tr>`).join('')}</table></div></details>`:''}</div>`;
+  if(jobs.length)h+=`<div class="card wide"><h2>Monthly income and costs</h2><p class="sub">By event date</p>${monthChart(jobs)}</div>`;
+  h+='</div>';
+  h+='<div class="toolbar" style="margin-top:14px"><button id="expRec">Download records (CSV)</button></div>';
+  el.innerHTML=h;
+}
+
+function badge(st){
+  return st==='paid'?'<span class="badge good">✓ Paid</span>':st==='deposit'?'<span class="badge warn">◐ Deposit in</span>':st==='unpaid'?'<span class="badge bad">⚠ Unpaid</span>':'<span class="badge" style="color:var(--muted)">–</span>';
+}
+function renderMoney(){
+  const el=$('#tab-money'),jobs=DATA.jobs.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+  let h=`<div class="toolbar"><button class="primary" id="addJob">+ Add an event</button><label class="hint">Currency <input type="text" id="curIn" value="${esc(CUR)}" maxlength="4" style="width:64px"></label>
+    <span class="hint">Income = package fee + prints beyond the included ones × print price. Costs = prints × media cost + your other costs.</span></div>`;
+  if(!jobs.length)h+='<div class="card"><p class="empty">No events yet. Add one, then type the same name as the booth\'s event name so prints are counted automatically.</p></div>';
+  else{
+    const tot={rev:0,cost:0,profit:0,owed:0,paid:0,prints:0};
+    const rows=jobs.map(j=>{const c=jobCalc(j);tot.rev+=c.rev;tot.cost+=c.cost;tot.profit+=c.profit;tot.owed+=c.owed;tot.paid+=c.paid;tot.prints+=c.prints;
+      const n=ALL.sessions.filter(s=>sameEv(s.event,j.name)).length;
+      return `<tr class="clk" data-job="${esc(j.id)}"><td>${esc(j.name)}${j.client?'<br><span class="hint">'+esc(j.client)+'</span>':''}</td><td>${esc(j.date||'–')}</td><td>${n}</td><td>${c.prints}</td><td>${money(c.rev)}</td><td>${money(c.cost)}</td><td class="${c.profit<0?'bad':''}">${money(c.profit)}</td><td>${money(c.paid)}</td><td class="${c.owed>0?'warn':''}">${money(c.owed)}</td><td>${badge(c.state)}</td></tr>`}).join('');
+    h+=`<div class="card"><div class="scroll"><table><tr><th>Event</th><th>Date</th><th>Sessions</th><th>Prints</th><th>Income</th><th>Costs</th><th>Profit</th><th>Received</th><th>Owed</th><th>Status</th></tr>${rows}
+      <tr><td><b>Total</b></td><td></td><td></td><td>${tot.prints}</td><td><b>${money(tot.rev)}</b></td><td><b>${money(tot.cost)}</b></td><td><b>${money(tot.profit)}</b></td><td>${money(tot.paid)}</td><td class="${tot.owed>0?'warn':''}"><b>${money(tot.owed)}</b></td><td></td></tr></table></div>
+      <p class="hint" style="margin:8px 0 0">Tap a row to edit it.</p></div>
+      <div class="card" style="margin-top:12px"><h2>Monthly income and costs</h2><p class="sub">By event date, last 12 months with events</p>${monthChart(jobs)}</div>`;
+  }
+  el.innerHTML=h;
+}
+function renderCmp(){
+  const f=filtered(true),names=eventNames(),el=$('#tab-cmp');
+  const rows=names.map(n=>{
+    const ss=f.sessions.filter(s=>sameEv(s.event,n)),S=stats(ss,f.walks.filter(w=>sameEv(w.event,n))),j=DATA.jobs.find(x=>sameEv(x.name,n)),c=j?jobCalc(j):null;
+    return{n,S,c,j};
+  }).filter(r=>r.S.n||r.c);
+  if(!rows.length){el.innerHTML='<div class="card"><p class="empty">No events to compare in this date range.</p></div>';return}
+  const best=(k)=>Math.max(...rows.map(r=>k(r)||0));
+  let h='<div class="card"><h2>Events side by side</h2><p class="sub">Uses the date range above; money is each event in full</p><div class="scroll"><table><tr><th>Event</th><th>Sessions</th><th>Finished</th><th>Avg session</th><th>Prints</th><th>Income</th><th>Profit</th></tr>';
+  h+=rows.map(r=>`<tr><td>${esc(r.n)}</td><td>${r.S.n}</td><td>${pct(r.S.done,r.S.n)}</td><td>${dur(r.S.avgTotal)}</td><td>${r.S.prints}</td><td>${r.c?money(r.c.rev):'–'}</td><td class="${r.c&&r.c.profit<0?'bad':''}">${r.c?money(r.c.profit):'–'}</td></tr>`).join('');
+  h+='</table></div></div><div class="cards">';
+  h+=`<div class="card"><h2>Sessions</h2><p class="sub">Per event</p>${bars(rows.map(r=>[r.n,r.S.n]).sort((a,b)=>b[1]-a[1]))}</div>`;
+  h+=`<div class="card"><h2>Prints</h2><p class="sub">Per event</p>${bars(rows.map(r=>[r.n,r.S.prints]).sort((a,b)=>b[1]-a[1]))}</div>`;
+  if(rows.some(r=>r.c))h+=`<div class="card"><h2>Profit</h2><p class="sub">Per event</p>${bars(rows.filter(r=>r.c).map(r=>[r.n,Math.max(0,r.c.profit),r.n+': '+money(r.c.profit)]).sort((a,b)=>b[1]-a[1]),{fmt:money})}</div>`;
+  h+='</div><div class="toolbar" style="margin-top:14px"><button id="expSum">Download summary (CSV)</button></div>';
+  el.innerHTML=h;
+}
+function render(){
+  if(!ALL)return;
+  const cur=eventSel(),names=eventNames();
+  $('#fEvent').innerHTML='<option value="">All events</option>'+names.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  $('#fEvent').value=names.includes(cur)?cur:'';
+  $('#fCustom').hidden=$('#fRange').value!=='custom';
+  renderOver();renderMoney();renderCmp();
+  $('#stamp').textContent='Updated '+new Date().toLocaleTimeString()+' · '+(MODE==='local'?'from the booth laptop':'from Supabase')+' · refreshes every 30 seconds';
+}
+
+/* ---------- edit an event's money ---------- */
+function openJob(id){
+  const j=DATA.jobs.find(x=>x.id===id)||{id:'j'+Date.now().toString(36),name:eventSel()||'',date:ymd(Date.now()),costs:[]},isNew=!DATA.jobs.some(x=>x.id===j.id);
+  const f=$('#jobForm'),costs=(j.costs||[]).slice();
+  const names=eventNames();
+  const draw=()=>{
+    f.innerHTML=`<h2>${isNew?'Add an event':'Edit event'}</h2>
+    <label>Event name (same as the booth's event name)<input type="text" name="name" list="evNames" value="${esc(j.name)}" required></label><datalist id="evNames">${names.map(n=>`<option value="${esc(n)}">`).join('')}</datalist>
+    <div class="two"><label>Event date<input type="date" name="date" value="${esc(j.date||'')}"></label><label>Client<input type="text" name="client" value="${esc(j.client||'')}"></label></div>
+    <div class="two"><label>Package fee (${esc(CUR)})<input type="number" step="any" min="0" name="fee" value="${esc(j.fee||'')}"></label><label>Deposit agreed (${esc(CUR)})<input type="number" step="any" min="0" name="deposit" value="${esc(j.deposit||'')}"></label></div>
+    <div class="two"><label>Received so far (${esc(CUR)})<input type="number" step="any" min="0" name="paid" value="${esc(j.paid||'')}"></label><label>Prints included in the fee<input type="number" step="1" min="0" name="included" value="${esc(j.included||'')}"></label></div>
+    <div class="two"><label>Price per extra print (${esc(CUR)})<input type="number" step="any" min="0" name="price" value="${esc(j.price||'')}"></label><label>Media cost per print (${esc(CUR)})<input type="number" step="any" min="0" name="media" value="${esc(j.media||'')}"></label></div>
+    <div><div class="hint" style="margin-bottom:4px">Other costs (travel, staff, props…)</div>${costs.map((c,i)=>`<div class="crow"><input type="text" data-c="l" data-i="${i}" value="${esc(c.l||'')}" placeholder="What for"><input type="number" step="any" data-c="a" data-i="${i}" value="${esc(c.a||'')}" placeholder="Amount"><button type="button" data-rm="${i}" aria-label="Remove cost">×</button></div>`).join('')}<button type="button" id="addCost">+ Add a cost</button></div>
+    <label>Notes<input type="text" name="notes" value="${esc(j.notes||'')}"></label>
+    <p class="err" id="jobErr"></p>
+    <div class="acts">${isNew?'':'<button type="button" id="delJob" class="link bad" style="margin-right:auto">Delete event</button>'}<button type="button" id="cancelJob">Cancel</button><button class="primary" id="saveJob" value="save">Save</button></div>`;
+  };
+  const sync=()=>{$$('#jobForm [data-c]').forEach(i=>{const c=costs[+i.dataset.i];if(c)c[i.dataset.c]=i.value})};
+  draw();
+  f.onclick=e=>{
+    const t=e.target;
+    if(t.id==='addCost'){sync();costs.push({l:'',a:''});draw()}
+    else if(t.dataset.rm!=null){sync();costs.splice(+t.dataset.rm,1);draw()}
+    else if(t.id==='cancelJob')$('#jobDlg').close();
+    else if(t.id==='delJob'){if(t.dataset.armed){saveJobs(DATA.jobs.filter(x=>x.id!==j.id)).then(()=>{$('#jobDlg').close();render()}).catch(er=>$('#jobErr').textContent=er.message)}else{t.dataset.armed=1;t.textContent='Tap again to delete'}}
+  };
+  f.onsubmit=async e=>{
+    e.preventDefault();sync();const d=new FormData(f),o={id:j.id};
+    ['name','date','client','notes'].forEach(k=>o[k]=String(d.get(k)||'').trim());
+    ['fee','deposit','paid','included','price','media'].forEach(k=>{const v=d.get(k);o[k]=v===''||v==null?0:num(v)});
+    o.costs=costs.filter(c=>c.l||num(c.a)).map(c=>({l:String(c.l||'').trim(),a:num(c.a)}));
+    if(!o.name){$('#jobErr').textContent='Give the event a name.';return}
+    const list=DATA.jobs.filter(x=>x.id!==j.id).concat([o]);
+    try{await saveJobs(list);$('#jobDlg').close();render()}catch(er){$('#jobErr').textContent='Could not save: '+er.message}
+  };
+  $('#jobDlg').showModal();
+}
+
+/* ---------- export ---------- */
+function csv(rows){return rows.map(r=>r.map(v=>{v=String(v==null?'':v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(',')).join('\r\n')}
+function download(name,text){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+text],{type:'text/csv'}));a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000)}
+function exportRecords(){
+  const[a,b]=range(),ev=eventSel();
+  const rows=[['Time','Event','Type','Session','Photo id','Details']];
+  DATA.events.filter(e=>e.ts>=a&&e.ts<=b&&(!ev||sameEv(e.event,ev))).forEach(e=>rows.push([new Date(e.ts).toISOString(),e.event,e.type,e.ses,e.sid,e.d?JSON.stringify(e.d):'']));
+  download('booth-records.csv',csv(rows));
+}
+function exportSummary(){
+  const f=filtered(true),rows=[['Event','Date','Client','Sessions','Finished','Avg session (s)','Prints','Failed prints','Income','Costs','Profit','Received','Owed']];
+  for(const n of eventNames()){
+    const S=stats(f.sessions.filter(s=>sameEv(s.event,n)),f.walks.filter(w=>sameEv(w.event,n))),j=DATA.jobs.find(x=>sameEv(x.name,n)),c=j?jobCalc(j):null;
+    if(!S.n&&!c)continue;
+    rows.push([n,j?j.date:'',j?j.client:'',S.n,S.done,S.avgTotal==null?'':Math.round(S.avgTotal),S.prints,S.pFail,c?c.rev:'',c?c.cost:'',c?c.profit:'',c?c.paid:'',c?c.owed:'']);
+  }
+  download('booth-event-summary.csv',csv(rows));
+}
+
+/* ---------- hover tooltip (works for mouse and touch) ---------- */
+const tip=$('#tip');
+document.addEventListener('pointermove',e=>{
+  const t=e.target.closest&&e.target.closest('[data-tip]');
+  if(!t){tip.style.display='none';return}
+  tip.textContent=t.getAttribute('data-tip');tip.style.display='block';
+  const w=tip.offsetWidth,x=Math.min(innerWidth-w-8,Math.max(8,e.clientX+12));tip.style.left=x+'px';tip.style.top=Math.max(8,e.clientY-tip.offsetHeight-12)+'px';
+});
+document.addEventListener('pointerleave',()=>{tip.style.display='none'});
+
+/* ---------- wiring ---------- */
+function showTab(t){
+  tab=t;$$('nav.tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===t));
+  ['over','money','cmp'].forEach(k=>$('#tab-'+k).hidden=k!==t);
+}
+$$('nav.tabs button').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
+['fEvent','fRange','fFrom','fTo'].forEach(id=>$('#'+id).addEventListener('change',render));
+$('#btnRefresh').onclick=async()=>{try{await loadData();render()}catch(e){fail(e)}};
+$('#btnTheme').onclick=()=>{const dark=matchMedia('(prefers-color-scheme:dark)').matches,cur=document.documentElement.dataset.theme||(dark?'dark':'light'),n=cur==='dark'?'light':'dark';document.documentElement.dataset.theme=n;store.set('an.theme',n)};
+{const t=store.get('an.theme');if(t)document.documentElement.dataset.theme=t}
+document.addEventListener('click',e=>{
+  const t=e.target;
+  if(t.id==='addJob')openJob();
+  else if(t.closest&&t.closest('tr[data-job]'))openJob(t.closest('tr[data-job]').dataset.job);
+  else if(t.id==='expRec')exportRecords();else if(t.id==='expSum')exportSummary();
+});
+document.addEventListener('input',e=>{if(e.target.id==='curIn'){CUR=e.target.value;store.set('an.cur',CUR);renderOver();renderCmp()}});
+
+function fail(e){
+  if(e.message==='pin'){sess.del('an.pin');PIN='';showLogin('That PIN is not right.')}
+  else $('#stamp').textContent='Could not load: '+e.message;
+}
+function showLogin(msg){
+  clearInterval(timer);$('#appView').hidden=true;$('#loginView').hidden=false;
+  $('#cloudFields').hidden=MODE==='local';
+  $('#loginHint').textContent=MODE==='local'?'Enter the staff PIN from the booth settings.':'Enter your Supabase details once, then the PIN you set in the analytics SQL.';
+  $('#cUrl').value=CFG.url||'';$('#cKey').value=CFG.key||'';
+  $('#loginErr').textContent=msg||'';$('#pin').focus();
+}
+async function enter(){
+  await loadData();
+  $('#loginView').hidden=true;$('#appView').hidden=false;render();
+  clearInterval(timer);timer=setInterval(()=>{if(!document.hidden&&!$('#jobDlg').open)loadData().then(render).catch(fail)},30000);
+}
+$('#loginForm').onsubmit=async e=>{
+  e.preventDefault();$('#loginErr').textContent='';
+  if(MODE==='cloud'){
+    let u=$('#cUrl').value.trim().replace(/\/+$/,'').replace(/\/(rest|storage)\/v1.*$/,'');if(/^[a-z0-9]{12,40}$/i.test(u))u='https://'+u+'.supabase.co';
+    if(!/^https:\/\/[^\s/]+$/i.test(u)||!$('#cKey').value.trim()){$('#loginErr').textContent='Enter the project URL and publishable key.';return}
+    CFG={url:u,key:$('#cKey').value.trim()};store.set('an.cfg',JSON.stringify(CFG));
+  }
+  PIN=$('#pin').value;
+  try{await enter();sess.set('an.pin',PIN)}
+  catch(er){
+    if(er.message==='pin')$('#loginErr').textContent='That PIN is not right.';
+    else if(MODE==='cloud'&&/stats_read|function|PGRST202|404/i.test(er.message))$('#loginErr').textContent='The analytics SQL has not been run in this Supabase project yet (see the README).';
+    else $('#loginErr').textContent='Could not connect: '+er.message;
+  }
+};
+
+(async function start(){
+  let local=false;
+  if(/^https?:$/.test(location.protocol)){try{const r=await fetch('/api/info',{cache:'no-store'});if(r.ok){const j=await r.json();local=!!(j&&j.app==='lepetique')}}catch(e){}}
+  MODE=local?'local':'cloud';
+  const saved=sess.get('an.pin');
+  if(saved!=null&&(MODE==='local'||CFG.url)){PIN=saved;try{await enter();return}catch(e){}}
+  showLogin();
+})();
+})();
+</script>
+</body>
+</html>
