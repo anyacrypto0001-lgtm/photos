@@ -84,13 +84,13 @@ dialog label{display:grid;gap:3px;font-size:13px;color:var(--text2)}
 <div id="loginView" class="login" hidden>
   <div class="card">
     <h1>Booth <span style="color:var(--accent)">Analytics</span></h1>
-    <p class="hint" id="loginHint">Enter the staff PIN from the booth settings.</p>
+    <p class="hint" id="loginHint">Enter the staff PIN or password from the booth settings.</p>
     <form id="loginForm">
       <div id="cloudFields" hidden>
         <label for="cUrl">Supabase project URL</label><input id="cUrl" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://abcdefghijkl.supabase.co">
         <label for="cKey">Publishable key</label><input id="cKey" type="text" autocomplete="off" spellcheck="false" placeholder="sb_publishable_…">
       </div>
-      <label for="pin">Staff PIN</label><input id="pin" type="password" inputmode="numeric" autocomplete="off">
+      <label for="pin">Staff PIN or password</label><input id="pin" type="password" autocomplete="off" autocapitalize="off" spellcheck="false">
       <p class="err" id="loginErr" role="alert"></p>
       <button class="primary" style="width:100%;margin-top:6px">Open analytics</button>
     </form>
@@ -114,6 +114,7 @@ dialog label{display:grid;gap:3px;font-size:13px;color:var(--text2)}
     <button role="tab" data-tab="over" aria-selected="true">Overview</button>
     <button role="tab" data-tab="money" aria-selected="false">Events &amp; money</button>
     <button role="tab" data-tab="cmp" aria-selected="false">Compare</button>
+    <button role="tab" data-tab="ses" aria-selected="false">Sessions</button>
   </nav>
 </div></header>
 
@@ -121,6 +122,7 @@ dialog label{display:grid;gap:3px;font-size:13px;color:var(--text2)}
   <section id="tab-over"></section>
   <section id="tab-money" hidden></section>
   <section id="tab-cmp" hidden></section>
+  <section id="tab-ses" hidden></section>
   <p class="hint" id="stamp" style="margin-top:18px"></p>
 </main>
 </div>
@@ -139,7 +141,7 @@ const MODE_NAMES={strip:'Photo strip',grid:'Grid',single:'Single',gif:'GIF',boom
 const modeName=m=>MODE_NAMES[m]||(m?m[0].toUpperCase()+m.slice(1):'Unknown');
 const STEPS={ready:'Camera screen',work:'Making the photo',review:'Results',attract:'Start screen',pick:'Choosing a mode',design:'Choosing a design',unknown:'Unknown'};
 
-let MODE='local',CFG={},PIN='',DATA={events:[],jobs:[]},ALL=null,tab='over',timer=0;
+let MODE='local',CFG={},PIN='',DATA={events:[],jobs:[]},ALL=null,tab='over',timer=0,openedOnUse=false;
 try{CFG=JSON.parse(store.get('an.cfg')||'{}')||{}}catch(e){CFG={}}
 let CUR=store.get('an.cur');if(CUR==null)CUR='$';
 
@@ -161,7 +163,7 @@ async function rpc(fn,body){
 }
 async function loadData(){
   if(MODE==='local'){
-    const h={'X-Pin':PIN};
+    const h={'X-Pin':encodeURIComponent(PIN)}; /* encoded: a password may hold letters a header can't carry */
     const a=await fetch('/api/stats',{headers:h});if(a.status===401)throw new Error('pin');if(!a.ok)throw new Error('HTTP '+a.status);
     const b=await fetch('/api/stats/jobs',{headers:h});
     DATA={events:(await a.json()).events||[],jobs:b.ok?((await b.json()).jobs||[]):[]};
@@ -172,19 +174,20 @@ async function loadData(){
 }
 async function saveJobs(list){
   DATA.jobs=list;
-  if(MODE==='local'){const r=await fetch('/api/stats/jobs',{method:'POST',headers:{'X-Pin':PIN,'Content-Type':'application/json'},body:JSON.stringify(list)});if(!r.ok)throw new Error('Could not save')}
+  if(MODE==='local'){const r=await fetch('/api/stats/jobs',{method:'POST',headers:{'X-Pin':encodeURIComponent(PIN),'Content-Type':'application/json'},body:JSON.stringify(list)});if(!r.ok)throw new Error('Could not save')}
   else await rpc('jobs_save',{p_pin:PIN,p_jobs:list});
 }
 
 /* ---------- turning raw records into sessions ---------- */
 function build(events){
   const bySid=new Map();events.forEach(e=>{if(e.sid&&e.ses)bySid.set(e.sid,e.ses)});
-  const map=new Map(),walks=[];
-  const get=k=>{let s=map.get(k);if(!s){s={id:k,printOk:0,printFail:0,copies:0,saves:0,shares:0,qrShown:false,qrOpen:0,downloads:0,upFail:0,fails:[],printers:{}};map.set(k,s)}return s};
+  const map=new Map(),walks=[];let inUse=null;
+  const get=k=>{let s=map.get(k);if(!s){s={id:k,ids:[],printOk:0,printFail:0,copies:0,saves:0,shares:0,qrShown:false,qrOpen:0,downloads:0,upFail:0,fails:[],printers:{}};map.set(k,s)}return s};
   for(const e of events){
     if(e.type==='walkaway'){walks.push(e);continue}
+    if(e.type==='event_use'){if(!inUse||e.ts>=inUse.ts)inUse=e;continue} /* the booth says which saved event it is using */
     const k=e.ses||bySid.get(e.sid);if(!k)continue;
-    const s=get(k),d=e.d||{};
+    const s=get(k),d=e.d||{};s.ids.push(e.id);
     switch(e.type){
       case 'session_start':s.start=e;break;
       case 'session_done':s.done=e;break;
@@ -212,7 +215,7 @@ function build(events){
     s.retake=!!(s.end&&s.end.d&&s.end.d.why==='retake');
     return s;
   }).sort((a,b)=>a.ts-b.ts);
-  return{sessions,walks};
+  return{sessions,walks,inUse:inUse?String((inUse.d&&inUse.d.name)||inUse.event||''):''};
 }
 
 /* ---------- filters ---------- */
@@ -236,7 +239,7 @@ function filtered(ignoreEvent){
 function eventNames(){
   const set=new Map();
   const add=n=>{n=String(n||'').trim();if(n&&!set.has(n.toLowerCase()))set.set(n.toLowerCase(),n)};
-  ALL.sessions.forEach(s=>add(s.event));DATA.jobs.forEach(j=>add(j.name));
+  ALL.sessions.forEach(s=>add(s.event));DATA.jobs.forEach(j=>add(j.name));add(ALL.inUse);
   return[...set.values()].sort((a,b)=>a.localeCompare(b));
 }
 
@@ -395,12 +398,37 @@ function renderCmp(){
 }
 function render(){
   if(!ALL)return;
-  const cur=eventSel(),names=eventNames();
-  $('#fEvent').innerHTML='<option value="">All events</option>'+names.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  let cur=eventSel();const names=eventNames(),use=names.find(n=>sameEv(n,ALL.inUse))||'';
+  if(!openedOnUse&&use){cur=use;openedOnUse=true} /* the first look opens on the event the booth is using now */
+  $('#fEvent').innerHTML='<option value="">All events</option>'+names.map(n=>`<option value="${esc(n)}">${esc(n)}${n===use?' (in use now)':''}</option>`).join('');
   $('#fEvent').value=names.includes(cur)?cur:'';
   $('#fCustom').hidden=$('#fRange').value!=='custom';
-  renderOver();renderMoney();renderCmp();
+  renderOver();renderMoney();renderCmp();renderSessions();
   $('#stamp').textContent='Updated '+new Date().toLocaleTimeString()+' · '+(MODE==='local'?'from the booth laptop':'from Supabase')+' · refreshes every 30 seconds';
+}
+
+/* ---------- sessions: list them and remove the ones you no longer want ---------- */
+const picked=new Set();
+function renderSessions(){
+  const el=$('#tab-ses');if(!el)return;
+  const list=filtered().sessions.slice().sort((a,b)=>b.ts-a.ts);
+  [...picked].forEach(id=>{if(!list.some(s=>s.id===id))picked.delete(id)});
+  const stat={done:'Finished',abandon:'Left early',live:'In progress'};
+  if(!list.length){el.innerHTML='<div class="card"><p class="empty">No sessions in this event and date range.</p></div>';return}
+  el.innerHTML=`<div class="card"><h2>Sessions</h2><p class="sub">${list.length} in this event and date range. Sessions you delete in the booth\'s gallery stay here until you remove them. Removing here never touches the booth\'s photos.</p>
+    <div class="toolbar"><button id="sesRm" ${picked.size?'':'disabled'}>Remove ${picked.size?picked.size+' selected':'selected'}</button><span id="sesMsg" class="hint"></span></div>
+    <div class="scroll"><table><tr><th><input type="checkbox" id="sesAll" aria-label="Select all" ${picked.size===list.length?'checked':''}></th><th>Time</th><th>Event</th><th>Mode</th><th>Design</th><th>Prints</th><th>Status</th><th></th></tr>${
+    list.slice(0,300).map(s=>`<tr><td><input type="checkbox" data-pick="${esc(s.id)}" ${picked.has(s.id)?'checked':''} aria-label="Select session"></td><td>${new Date(s.ts).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</td><td>${esc(s.event)}</td><td>${esc(modeName(s.mode))}</td><td>${esc(s.design||'–')}</td><td>${s.copies}</td><td>${stat[s.status]||s.status}</td><td><button class="link bad" data-rm1="${esc(s.id)}">Remove</button></td></tr>`).join('')}</table></div>${list.length>300?'<p class="hint">Showing the latest 300. Narrow the date range to see older ones.</p>':''}</div>`;
+}
+async function removeSessions(ids){
+  const sel=ALL.sessions.filter(s=>ids.includes(s.id));if(!sel.length)return;
+  if(!confirm(`Remove ${sel.length} session${sel.length===1?'':'s'} from the analytics? This can't be undone.`))return;
+  const rec=[...new Set(sel.flatMap(s=>s.ids))];
+  try{
+    if(MODE==='local'){const r=await fetch('/api/stats/remove',{method:'POST',headers:{'X-Pin':encodeURIComponent(PIN),'Content-Type':'application/json'},body:JSON.stringify({ids:rec})});if(r.status===401)throw new Error('pin');if(!r.ok)throw new Error('HTTP '+r.status)}
+    else await rpc('stats_remove',{p_pin:PIN,p_ids:rec});
+    ids.forEach(i=>picked.delete(i));await loadData();render();
+  }catch(e){if(e.message==='pin')fail(e);else{const m=$('#sesMsg');if(m)m.textContent='Could not remove: '+e.message+(MODE==='cloud'?' (run the updated analytics.sql in Supabase)':'')}}
 }
 
 /* ---------- edit an event's money ---------- */
@@ -473,7 +501,7 @@ document.addEventListener('pointerleave',()=>{tip.style.display='none'});
 /* ---------- wiring ---------- */
 function showTab(t){
   tab=t;$$('nav.tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===t));
-  ['over','money','cmp'].forEach(k=>$('#tab-'+k).hidden=k!==t);
+  ['over','money','cmp','ses'].forEach(k=>$('#tab-'+k).hidden=k!==t);
 }
 $$('nav.tabs button').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
 ['fEvent','fRange','fFrom','fTo'].forEach(id=>$('#'+id).addEventListener('change',render));
@@ -482,7 +510,11 @@ $('#btnTheme').onclick=()=>{const dark=matchMedia('(prefers-color-scheme:dark)')
 {const t=store.get('an.theme');if(t)document.documentElement.dataset.theme=t}
 document.addEventListener('click',e=>{
   const t=e.target;
-  if(t.id==='addJob')openJob();
+  if(t.id==='sesRm')removeSessions([...picked]);
+  else if(t.dataset&&t.dataset.rm1)removeSessions([t.dataset.rm1]);
+  else if(t.id==='sesAll'){const l=filtered().sessions;if(t.checked)l.forEach(s=>picked.add(s.id));else picked.clear();renderSessions()}
+  else if(t.dataset&&t.dataset.pick!=null){if(t.checked)picked.add(t.dataset.pick);else picked.delete(t.dataset.pick);renderSessions()}
+  else if(t.id==='addJob')openJob();
   else if(t.closest&&t.closest('tr[data-job]'))openJob(t.closest('tr[data-job]').dataset.job);
   else if(t.id==='expRec')exportRecords();else if(t.id==='expSum')exportSummary();
 });
@@ -495,7 +527,7 @@ function fail(e){
 function showLogin(msg){
   clearInterval(timer);$('#appView').hidden=true;$('#loginView').hidden=false;
   $('#cloudFields').hidden=MODE==='local';
-  $('#loginHint').textContent=MODE==='local'?'Enter the staff PIN from the booth settings.':'Enter your Supabase details once, then the PIN you set in the analytics SQL.';
+  $('#loginHint').textContent=MODE==='local'?'Enter the staff PIN or password from the booth settings.':'Enter your Supabase details once, then the PIN you set in the analytics SQL.';
   $('#cUrl').value=CFG.url||'';$('#cKey').value=CFG.key||'';
   $('#loginErr').textContent=msg||'';$('#pin').focus();
 }
