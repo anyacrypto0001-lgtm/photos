@@ -116,6 +116,7 @@ dialog label{display:grid;gap:3px;font-size:13px;color:var(--text2)}
     <button role="tab" data-tab="money" aria-selected="false">Events &amp; money</button>
     <button role="tab" data-tab="cmp" aria-selected="false">Compare</button>
     <button role="tab" data-tab="ses" aria-selected="false">Sessions</button>
+    <button role="tab" data-tab="photos" aria-selected="false" id="tabPhotos" hidden>Online photos</button>
   </nav>
 </div></header>
 
@@ -124,6 +125,7 @@ dialog label{display:grid;gap:3px;font-size:13px;color:var(--text2)}
   <section id="tab-money" hidden></section>
   <section id="tab-cmp" hidden></section>
   <section id="tab-ses" hidden></section>
+  <section id="tab-photos" hidden></section>
   <p class="hint" id="stamp" style="margin-top:18px"></p>
 </main>
 </div>
@@ -410,7 +412,7 @@ function render(){
   $('#fEvent').innerHTML='<option value="">All events</option>'+names.map(n=>`<option value="${esc(n)}">${esc(n)}${n===use?' (in use now)':''}</option>`).join('');
   $('#fEvent').value=names.includes(cur)?cur:'';
   $('#fCustom').hidden=$('#fRange').value!=='custom';
-  renderOver();renderMoney();renderCmp();renderSessions();
+  renderOver();renderMoney();renderCmp();renderSessions();phInit();
   $('#lnkDesign').hidden=MODE==='local';
   $('#stamp').textContent='Updated '+new Date().toLocaleTimeString()+' · '+(MODE==='local'?'from the booth laptop':'from Supabase')+' · refreshes every 30 seconds';
 }
@@ -437,6 +439,82 @@ async function removeSessions(ids){
     else await rpc('stats_remove',{p_pin:PIN,p_ids:rec});
     ids.forEach(i=>picked.delete(i));await loadData();render();
   }catch(e){if(e.message==='pin')fail(e);else{const m=$('#sesMsg');if(m)m.textContent='Could not remove: '+e.message+(MODE==='cloud'?' (run the updated analytics.sql in Supabase)':'')}}
+}
+
+/* ---------- online photos: what each event takes in Supabase storage, and deleting it ----------
+   Only for the online page. Deleting stored files needs Supabase's secret (service role) key. It is typed here when needed,
+   kept only in this open page (never saved) and wiped after each delete, and the booth never has it. */
+const ph={folders:null,busy:false,built:false};
+const phBucket=()=>($('#phBucket')?$('#phBucket').value:store.get('an.bucket')||'').trim();
+const phHdr=(key,extra)=>{const h=Object.assign({apikey:key},extra||{});if(/^eyJ/.test(key))h.Authorization='Bearer '+key;return h};
+const bytesTxt=n=>n>=1048576?(n/1048576).toFixed(n>=1e8?0:1)+' MB':Math.max(1,Math.round(n/1024))+' KB';
+function phKeyProblem(key){
+  if(!key)return 'Paste your Supabase secret key first (Project Settings → API Keys → secret key).';
+  if(/^sb_publishable_/.test(key))return 'That is the publishable key. Deleting needs the secret key.';
+  if(/^eyJ/.test(key)){try{const p=JSON.parse(atob(key.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));if(p.role!=='service_role')return 'That key is not the secret (service role) key.'}catch(e){return 'That key does not look right.'}}
+  return '';
+}
+async function phApi(key,path,opt){
+  const r=await fetch(`${CFG.url}/storage/v1/object/${path}`,Object.assign({headers:phHdr(key,{'Content-Type':'application/json'})},opt||{}));
+  if(!r.ok){const t=await r.text().catch(()=>'');throw new Error(r.status===401||r.status===403?'Supabase refused that key.':/bucket not found/i.test(t)?'Bucket not found. Check its name.':(t.slice(0,160)||'HTTP '+r.status))}
+  return r.json();
+}
+async function phList(key,bucket,prefix){
+  const all=[];
+  for(let off=0;;off+=1000){
+    const a=await phApi(key,'list/'+encodeURIComponent(bucket),{method:'POST',body:JSON.stringify({prefix,limit:1000,offset:off,sortBy:{column:'name',order:'asc'}})});
+    all.push(...a);if(a.length<1000)break;
+  }
+  return all;
+}
+function phInit(){
+  const el=$('#tab-photos'),tb=$('#tabPhotos');if(!el)return;tb.hidden=MODE==='local';if(ph.built||MODE==='local')return;ph.built=true;
+  el.innerHTML=`<div class="card"><h2>Photos online</h2><p class="sub">Guests' photos, GIFs and videos stored in Supabase, one folder per event. Delete an event's photos when you no longer need them (for example to stay under the free storage limit). Guests' links to deleted photos stop working, and deleted files can't be recovered. The booth's own copies on the laptop are never touched.</p>
+    <div class="two"><label>Storage bucket<input type="text" id="phBucket" autocomplete="off" spellcheck="false" placeholder="le-petique" value="${esc(store.get('an.bucket')||'')}"></label>
+    <label>Supabase secret key (not saved)<input type="password" id="phKey" autocomplete="off" spellcheck="false" placeholder="sb_secret_…"></label></div>
+    <div class="toolbar"><button id="phScan" class="primary">Look at what is online</button><span id="phMsg" class="hint"></span></div></div>
+    <div id="phOut" style="margin-top:12px"></div>`;
+}
+function phDraw(){
+  const out=$('#phOut');if(!out||!ph.folders)return;
+  const F=ph.folders,tot=F.reduce((t,f)=>({n:t.n+f.files.length,b:t.b+f.bytes}),{n:0,b:0}),fmt=t=>t?new Date(t).toLocaleDateString([],{year:'numeric',month:'short',day:'numeric'}):'–';
+  if(!F.length){out.innerHTML='<div class="card"><p class="empty">No event folders in this bucket.</p></div>';return}
+  out.innerHTML=`<div class="card"><div class="scroll"><table><tr><th>Event folder</th><th>Files</th><th>Size</th><th>Oldest</th><th>Newest</th><th></th></tr>${
+    F.map((f,i)=>`<tr><td>${esc(f.name)}</td><td>${f.files.length}</td><td>${bytesTxt(f.bytes)}</td><td>${fmt(f.oldest)}</td><td>${fmt(f.newest)}</td><td><button class="link bad" data-phdel="${i}">Delete photos</button></td></tr>`).join('')}
+    <tr><td><b>Total</b></td><td><b>${tot.n}</b></td><td><b>${bytesTxt(tot.b)}</b></td><td></td><td></td><td></td></tr></table></div>
+    <div class="toolbar" style="margin-top:12px"><label class="hint">Delete everything older than <input type="number" id="phDays" min="1" max="3650" value="60" style="width:80px"> days</label><button id="phOld">Delete old photos…</button></div></div>`;
+}
+async function phScan(){
+  if(ph.busy)return;const key=$('#phKey').value.trim(),bucket=phBucket(),msg=$('#phMsg'),bad=phKeyProblem(key);
+  if(bad){msg.textContent=bad;return}if(!/^[\w.-]+$/.test(bucket)){msg.textContent='Enter the bucket name.';return}
+  store.set('an.bucket',bucket);ph.busy=true;msg.textContent='Looking…';
+  try{
+    const top=await phList(key,bucket,''),folders=[];
+    for(const d of top){
+      if(d.id!==null||d.name==='_designs')continue; /* folders only; the online editor's designs are not guest photos */
+      const files=(await phList(key,bucket,d.name)).filter(x=>x.id!==null).map(x=>({path:d.name+'/'+x.name,size:+(x.metadata&&x.metadata.size)||0,t:Date.parse(x.created_at||x.updated_at||'')||0}));
+      const ts=files.map(x=>x.t).filter(Boolean);
+      folders.push({name:d.name,files,bytes:files.reduce((t,x)=>t+x.size,0),oldest:ts.length?Math.min(...ts):0,newest:ts.length?Math.max(...ts):0});
+    }
+    ph.folders=folders;msg.textContent='';phDraw();
+  }catch(e){msg.textContent='Could not look: '+e.message}finally{ph.busy=false}
+}
+async function phDelete(paths,label){
+  if(ph.busy||!paths.length)return;const key=$('#phKey').value.trim(),bucket=phBucket(),msg=$('#phMsg'),bad=phKeyProblem(key);
+  if(bad){msg.textContent=bad;return}
+  const size=ph.folders.flatMap(f=>f.files).filter(f=>paths.includes(f.path)).reduce((t,f)=>t+f.size,0);
+  if(!confirm(`Delete ${paths.length} file${paths.length===1?'':'s'} (${bytesTxt(size)}) ${label} from Supabase?\n\nGuests' links to them stop working. This can't be undone.`))return;
+  ph.busy=true;let done=0;
+  try{
+    for(let i=0;i<paths.length;i+=100){
+      msg.textContent=`Deleting… ${done} of ${paths.length}`;
+      const r=await phApi(key,encodeURIComponent(bucket),{method:'DELETE',body:JSON.stringify({prefixes:paths.slice(i,i+100)})});done+=Array.isArray(r)?r.length:0;
+    }
+    $('#phKey').value='';ph.busy=false;await phScanAfter(`Deleted ${done} file${done===1?'':'s'}. Paste the key again to look again.`);
+  }catch(e){msg.textContent=`Stopped after ${done}: ${e.message}`;ph.busy=false}
+}
+async function phScanAfter(text){ /* the key was wiped after the delete: forget the old table (it no longer matches) */
+  ph.folders=null;const out=$('#phOut');if(out)out.innerHTML='';$('#phMsg').textContent=text;
 }
 
 /* ---------- edit an event's money ---------- */
@@ -526,7 +604,7 @@ document.addEventListener('pointerleave',()=>{tip.style.display='none'});
 /* ---------- wiring ---------- */
 function showTab(t){
   tab=t;$$('nav.tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===t));
-  ['over','money','cmp','ses'].forEach(k=>$('#tab-'+k).hidden=k!==t);
+  ['over','money','cmp','ses','photos'].forEach(k=>$('#tab-'+k).hidden=k!==t);
 }
 $$('nav.tabs button').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
 ['fEvent','fRange','fFrom','fTo'].forEach(id=>$('#'+id).addEventListener('change',render));
@@ -535,7 +613,12 @@ $('#btnTheme').onclick=()=>{const dark=matchMedia('(prefers-color-scheme:dark)')
 {const t=store.get('an.theme');if(t)document.documentElement.dataset.theme=t}
 document.addEventListener('click',e=>{
   const t=e.target;
-  if(t.id==='sesRm')removeSessions([...picked]);
+  if(t.id==='phScan')phScan();
+  else if(t.dataset&&t.dataset.phdel!=null){const f=ph.folders[+t.dataset.phdel];if(f)phDelete(f.files.map(x=>x.path),`in the folder "${f.name}"`)}
+  else if(t.id==='phOld'){const d=Math.max(1,Math.round(num($('#phDays').value))||60),cut=Date.now()-d*864e5,
+    paths=ph.folders.flatMap(f=>f.files).filter(x=>x.t&&x.t<cut).map(x=>x.path);
+    if(!paths.length)$('#phMsg').textContent=`Nothing is older than ${d} days.`;else phDelete(paths,`older than ${d} days`)}
+  else if(t.id==='sesRm')removeSessions([...picked]);
   else if(t.dataset&&t.dataset.rm1)removeSessions([t.dataset.rm1]);
   else if(t.id==='sesAll'){const l=filtered().sessions;if(t.checked)l.forEach(s=>picked.add(s.id));else picked.clear();renderSessions()}
   else if(t.dataset&&t.dataset.pick!=null){if(t.checked)picked.add(t.dataset.pick);else picked.delete(t.dataset.pick);renderSessions()}
@@ -551,7 +634,7 @@ function fail(e){
 }
 function showLogin(msg){
   clearInterval(timer);$('#appView').hidden=true;$('#loginView').hidden=false;
-  $('#cloudFields').hidden=MODE==='local';$('#lnkDesign').hidden=MODE==='local'; /* the editor is hosted next to this page, not served by the booth laptop */
+  $('#cloudFields').hidden=MODE==='local';$('#lnkDesign').hidden=MODE==='local';$('#tabPhotos').hidden=MODE==='local'; /* the editor is hosted next to this page, not served by the booth laptop */
   $('#loginHint').textContent=MODE==='local'?'Enter the staff PIN or password from the booth settings.':'Enter your Supabase details once, then the PIN you set in the analytics SQL.';
   $('#cUrl').value=CFG.url||'';$('#cKey').value=CFG.key||'';
   $('#loginErr').textContent=msg||'';$('#pin').focus();
