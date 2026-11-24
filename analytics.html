@@ -160,7 +160,7 @@ function cloudHeaders(){const h={apikey:CFG.key,'Content-Type':'application/json
 async function rpc(fn,body){
   const r=await fetch(CFG.url+'/rest/v1/rpc/'+fn,{method:'POST',headers:cloudHeaders(),body:JSON.stringify(body)});
   if(!r.ok){const t=await r.text().catch(()=>'');const e=new Error(/wrong pin/i.test(t)?'pin':(t.slice(0,200)||'HTTP '+r.status));e.status=r.status;throw e}
-  return r.json();
+  const t=await r.text();return t?JSON.parse(t):null; /* some functions (saving money details) answer with nothing */
 }
 async function loadData(){
   if(MODE==='local'){
