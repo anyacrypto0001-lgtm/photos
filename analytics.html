@@ -266,12 +266,17 @@ function stats(list,walks){
 }
 /* prints per event over all time: what the print price is charged on */
 function printsFor(name){let n=0;for(const s of ALL.sessions)if(sameEv(s.event,name))n+=s.copies;return n}
+/* Two ways of charging. "private": a package price plus add-ons, with some prints included. "session": a price per session
+   (with some prints included in each), plus a price for each extra print. Events saved before this have no type and count as private. */
+const isSessionJob=j=>j.type==='session';
 function jobCalc(j){
-  const prints=printsFor(j.name),inc=num(j.included),extra=Math.max(0,prints-inc),
-    printRev=extra*num(j.price),rev=num(j.fee)+printRev,
+  const ses=ALL.sessions.filter(s=>sameEv(s.event,j.name)),prints=ses.reduce((t,s)=>t+s.copies,0),inc=num(j.included),
+    addons=(j.addons||[]).reduce((t,a)=>t+num(a.a),0),sess=isSessionJob(j);
+  const extra=sess?ses.reduce((t,s)=>t+Math.max(0,s.copies-inc),0):Math.max(0,prints-inc),
+    printRev=extra*num(j.price),sessRev=sess?ses.length*num(j.sprice):0,base=num(j.fee)+sessRev,rev=base+addons+printRev,
     others=(j.costs||[]).reduce((t,c)=>t+num(c.a),0),media=prints*num(j.media),cost=media+others,
     paid=num(j.paid),owed=Math.max(0,rev-paid);
-  return{prints,extra,printRev,rev,media,others,cost,profit:rev-cost,paid,owed,
+  return{prints,sessions:ses.length,extra,printRev,sessRev,base,addons,rev,media,others,cost,profit:rev-cost,paid,owed,
     state:rev<=0?'none':owed<=0.005?'paid':paid>=num(j.deposit)&&paid>0?'deposit':'unpaid'};
 }
 function jobsShown(){
@@ -337,7 +342,8 @@ function renderOver(){
   h+='</div>';
   if(jobs.length){
     h+='<div class="grid" style="margin-top:12px">';
-    h+=kpi('Income',money(rev),`${jobs.length} event${jobs.length===1?'':'s'}`);
+    const nSes=jobs.filter(isSessionJob).length;
+    h+=kpi('Income',money(rev),`${jobs.length} event${jobs.length===1?'':'s'}${nSes?` · ${nSes} session-based`:''}`);
     h+=kpi('Costs',money(cost));
     h+=kpi('Profit',money(rev-cost),'',rev-cost<0?'bad':'');
     h+=kpi('Still owed',money(owed),owed>0?'<span class="warn">⚠ unpaid balance</span>':'all paid',owed>0?'warn':'');
@@ -366,13 +372,13 @@ function badge(st){
 function renderMoney(){
   const el=$('#tab-money'),jobs=DATA.jobs.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
   let h=`<div class="toolbar"><button class="primary" id="addJob">+ Add an event</button><label class="hint">Currency <input type="text" id="curIn" value="${esc(CUR)}" maxlength="4" style="width:64px"></label>
-    <span class="hint">Income = package fee + prints beyond the included ones × print price. Costs = prints × media cost + your other costs.</span></div>`;
+    <span class="hint">Private event: package price + add-ons + prints beyond the included ones × print price. Session-based: sessions × price per session + extra prints × print price. Costs = prints × media cost + your other costs.</span></div>`;
   if(!jobs.length)h+='<div class="card"><p class="empty">No events yet. Add one, then type the same name as the booth\'s event name so prints are counted automatically.</p></div>';
   else{
     const tot={rev:0,cost:0,profit:0,owed:0,paid:0,prints:0};
     const rows=jobs.map(j=>{const c=jobCalc(j);tot.rev+=c.rev;tot.cost+=c.cost;tot.profit+=c.profit;tot.owed+=c.owed;tot.paid+=c.paid;tot.prints+=c.prints;
       const n=ALL.sessions.filter(s=>sameEv(s.event,j.name)).length;
-      return `<tr class="clk" data-job="${esc(j.id)}"><td>${esc(j.name)}${j.client?'<br><span class="hint">'+esc(j.client)+'</span>':''}</td><td>${esc(j.date||'–')}</td><td>${n}</td><td>${c.prints}</td><td>${money(c.rev)}</td><td>${money(c.cost)}</td><td class="${c.profit<0?'bad':''}">${money(c.profit)}</td><td>${money(c.paid)}</td><td class="${c.owed>0?'warn':''}">${money(c.owed)}</td><td>${badge(c.state)}</td></tr>`}).join('');
+      return `<tr class="clk" data-job="${esc(j.id)}"><td>${esc(j.name)}<br><span class="hint">${isSessionJob(j)?'Session-based':'Private event'}${j.client?' · '+esc(j.client):''}</span></td><td>${esc(j.date||'–')}</td><td>${n}</td><td>${c.prints}</td><td>${money(c.rev)}</td><td>${money(c.cost)}</td><td class="${c.profit<0?'bad':''}">${money(c.profit)}</td><td>${money(c.paid)}</td><td class="${c.owed>0?'warn':''}">${money(c.owed)}</td><td>${badge(c.state)}</td></tr>`}).join('');
     h+=`<div class="card"><div class="scroll"><table><tr><th>Event</th><th>Date</th><th>Sessions</th><th>Prints</th><th>Income</th><th>Costs</th><th>Profit</th><th>Received</th><th>Owed</th><th>Status</th></tr>${rows}
       <tr><td><b>Total</b></td><td></td><td></td><td>${tot.prints}</td><td><b>${money(tot.rev)}</b></td><td><b>${money(tot.cost)}</b></td><td><b>${money(tot.profit)}</b></td><td>${money(tot.paid)}</td><td class="${tot.owed>0?'warn':''}"><b>${money(tot.owed)}</b></td><td></td></tr></table></div>
       <p class="hint" style="margin:8px 0 0">Tap a row to edit it.</p></div>
@@ -435,35 +441,52 @@ async function removeSessions(ids){
 
 /* ---------- edit an event's money ---------- */
 function openJob(id){
-  const j=DATA.jobs.find(x=>x.id===id)||{id:'j'+Date.now().toString(36),name:eventSel()||'',date:ymd(Date.now()),costs:[]},isNew=!DATA.jobs.some(x=>x.id===j.id);
-  const f=$('#jobForm'),costs=(j.costs||[]).slice();
-  const names=eventNames();
+  const j=Object.assign({},DATA.jobs.find(x=>x.id===id)||{id:'j'+Date.now().toString(36),name:eventSel()||'',date:ymd(Date.now()),costs:[]}),isNew=!DATA.jobs.some(x=>x.id===j.id); /* a copy: Cancel must leave the saved event as it was */
+  const f=$('#jobForm'),costs=(j.costs||[]).slice(),addons=(j.addons||[]).slice();
+  const names=eventNames();let type=isSessionJob(j)?'session':'private';
+  const row=(list,kind,ph1,ph2)=>list.map((c,i)=>`<div class="crow"><input type="text" data-${kind}="l" data-i="${i}" value="${esc(c.l||'')}" placeholder="${ph1}"><input type="number" step="any" data-${kind}="a" data-i="${i}" value="${esc(c.a||'')}" placeholder="${ph2}"><button type="button" data-rm${kind}="${i}" aria-label="Remove">×</button></div>`).join('');
   const draw=()=>{
+    const ses=type==='session',v=k=>esc(j[k]||'');
     f.innerHTML=`<h2>${isNew?'Add an event':'Edit event'}</h2>
     <label>Event name (same as the booth's event name)<input type="text" name="name" list="evNames" value="${esc(j.name)}" required></label><datalist id="evNames">${names.map(n=>`<option value="${esc(n)}">`).join('')}</datalist>
-    <div class="two"><label>Event date<input type="date" name="date" value="${esc(j.date||'')}"></label><label>Client<input type="text" name="client" value="${esc(j.client||'')}"></label></div>
-    <div class="two"><label>Package fee (${esc(CUR)})<input type="number" step="any" min="0" name="fee" value="${esc(j.fee||'')}"></label><label>Deposit agreed (${esc(CUR)})<input type="number" step="any" min="0" name="deposit" value="${esc(j.deposit||'')}"></label></div>
-    <div class="two"><label>Received so far (${esc(CUR)})<input type="number" step="any" min="0" name="paid" value="${esc(j.paid||'')}"></label><label>Prints included in the fee<input type="number" step="1" min="0" name="included" value="${esc(j.included||'')}"></label></div>
-    <div class="two"><label>Price per extra print (${esc(CUR)})<input type="number" step="any" min="0" name="price" value="${esc(j.price||'')}"></label><label>Media cost per print (${esc(CUR)})<input type="number" step="any" min="0" name="media" value="${esc(j.media||'')}"></label></div>
-    <div><div class="hint" style="margin-bottom:4px">Other costs (travel, staff, props…)</div>${costs.map((c,i)=>`<div class="crow"><input type="text" data-c="l" data-i="${i}" value="${esc(c.l||'')}" placeholder="What for"><input type="number" step="any" data-c="a" data-i="${i}" value="${esc(c.a||'')}" placeholder="Amount"><button type="button" data-rm="${i}" aria-label="Remove cost">×</button></div>`).join('')}<button type="button" id="addCost">+ Add a cost</button></div>
-    <label>Notes<input type="text" name="notes" value="${esc(j.notes||'')}"></label>
+    <div class="two"><label>Event date<input type="date" name="date" value="${v('date')}"></label><label>Client<input type="text" name="client" value="${v('client')}"></label></div>
+    <label>Type of event<select name="type" id="jobType"><option value="private" ${ses?'':'selected'}>Private event (a package price, with add-ons)</option><option value="session" ${ses?'selected':''}>Session-based (a price for each session)</option></select></label>
+    ${ses?`<div class="two"><label>Price per session (${esc(CUR)})<input type="number" step="any" min="0" name="sprice" value="${v('sprice')}"></label><label>Prints included in each session<input type="number" step="1" min="0" name="included" value="${v('included')}"></label></div>
+    <div class="two"><label>Price per extra print (${esc(CUR)})<input type="number" step="any" min="0" name="price" value="${v('price')}"></label><label>Base fee, if any (${esc(CUR)})<input type="number" step="any" min="0" name="fee" value="${v('fee')}"></label></div>`
+    :`<div class="two"><label>Package price (${esc(CUR)})<input type="number" step="any" min="0" name="fee" value="${v('fee')}"></label><label>Prints included in the package<input type="number" step="1" min="0" name="included" value="${v('included')}"></label></div>
+    <div class="two"><label>Price per extra print (${esc(CUR)})<input type="number" step="any" min="0" name="price" value="${v('price')}"></label><span></span></div>`}
+    <div><div class="hint" style="margin-bottom:4px">Add-ons the client chose (extra hour, props, backdrop…): each adds to the income</div>${row(addons,'a','Add-on','Price')}<button type="button" id="addAddon">+ Add an add-on</button></div>
+    <div class="two"><label>Deposit agreed (${esc(CUR)})<input type="number" step="any" min="0" name="deposit" value="${v('deposit')}"></label><label>Received so far (${esc(CUR)})<input type="number" step="any" min="0" name="paid" value="${v('paid')}"></label></div>
+    <div class="two"><label>Media cost per print (${esc(CUR)})<input type="number" step="any" min="0" name="media" value="${v('media')}"></label><span></span></div>
+    <div><div class="hint" style="margin-bottom:4px">Other costs (travel, staff, props…)</div>${row(costs,'c','What for','Amount')}<button type="button" id="addCost">+ Add a cost</button></div>
+    <label>Notes<input type="text" name="notes" value="${v('notes')}"></label>
     <p class="err" id="jobErr"></p>
     <div class="acts">${isNew?'':'<button type="button" id="delJob" class="link bad" style="margin-right:auto">Delete event</button>'}<button type="button" id="cancelJob">Cancel</button><button class="primary" id="saveJob" value="save">Save</button></div>`;
   };
-  const sync=()=>{$$('#jobForm [data-c]').forEach(i=>{const c=costs[+i.dataset.i];if(c)c[i.dataset.c]=i.value})};
+  /* keeps what was typed when the form is redrawn (a new add-on row, or a change of type) */
+  const sync=()=>{
+    $$('#jobForm [data-c]').forEach(i=>{const c=costs[+i.dataset.i];if(c)c[i.dataset.c]=i.value});
+    $$('#jobForm [data-a]').forEach(i=>{const c=addons[+i.dataset.i];if(c)c[i.dataset.a]=i.value});
+    const d=new FormData(f);d.forEach((val,k)=>{if(k!=='type')j[k]=String(val)});
+    const t=$('#jobType');if(t)type=t.value;
+  };
   draw();
+  f.onchange=e=>{if(e.target.id==='jobType'){sync();draw()}};
   f.onclick=e=>{
     const t=e.target;
     if(t.id==='addCost'){sync();costs.push({l:'',a:''});draw()}
-    else if(t.dataset.rm!=null){sync();costs.splice(+t.dataset.rm,1);draw()}
+    else if(t.id==='addAddon'){sync();addons.push({l:'',a:''});draw()}
+    else if(t.dataset.rma!=null){sync();addons.splice(+t.dataset.rma,1);draw()}
+    else if(t.dataset.rmc!=null){sync();costs.splice(+t.dataset.rmc,1);draw()}
     else if(t.id==='cancelJob')$('#jobDlg').close();
     else if(t.id==='delJob'){if(t.dataset.armed){saveJobs(DATA.jobs.filter(x=>x.id!==j.id)).then(()=>{$('#jobDlg').close();render()}).catch(er=>$('#jobErr').textContent=er.message)}else{t.dataset.armed=1;t.textContent='Tap again to delete'}}
   };
   f.onsubmit=async e=>{
-    e.preventDefault();sync();const d=new FormData(f),o={id:j.id};
-    ['name','date','client','notes'].forEach(k=>o[k]=String(d.get(k)||'').trim());
-    ['fee','deposit','paid','included','price','media'].forEach(k=>{const v=d.get(k);o[k]=v===''||v==null?0:num(v)});
+    e.preventDefault();sync();const o={id:j.id,type};
+    ['name','date','client','notes'].forEach(k=>o[k]=String(j[k]||'').trim());
+    ['fee','deposit','paid','included','price','media','sprice'].forEach(k=>{const v=j[k];o[k]=v===''||v==null?0:num(v)});
     o.costs=costs.filter(c=>c.l||num(c.a)).map(c=>({l:String(c.l||'').trim(),a:num(c.a)}));
+    o.addons=addons.filter(c=>c.l||num(c.a)).map(c=>({l:String(c.l||'').trim(),a:num(c.a)}));
     if(!o.name){$('#jobErr').textContent='Give the event a name.';return}
     const list=DATA.jobs.filter(x=>x.id!==j.id).concat([o]);
     try{await saveJobs(list);$('#jobDlg').close();render()}catch(er){$('#jobErr').textContent='Could not save: '+er.message}
@@ -481,11 +504,11 @@ function exportRecords(){
   download('booth-records.csv',csv(rows));
 }
 function exportSummary(){
-  const f=filtered(true),rows=[['Event','Date','Client','Sessions','Finished','Avg session (s)','Prints','Failed prints','Income','Costs','Profit','Received','Owed']];
+  const f=filtered(true),rows=[['Event','Type','Date','Client','Sessions','Finished','Avg session (s)','Prints','Failed prints','Add-ons','Income','Costs','Profit','Received','Owed']];
   for(const n of eventNames()){
     const S=stats(f.sessions.filter(s=>sameEv(s.event,n)),f.walks.filter(w=>sameEv(w.event,n))),j=DATA.jobs.find(x=>sameEv(x.name,n)),c=j?jobCalc(j):null;
     if(!S.n&&!c)continue;
-    rows.push([n,j?j.date:'',j?j.client:'',S.n,S.done,S.avgTotal==null?'':Math.round(S.avgTotal),S.prints,S.pFail,c?c.rev:'',c?c.cost:'',c?c.profit:'',c?c.paid:'',c?c.owed:'']);
+    rows.push([n,j?(isSessionJob(j)?'Session-based':'Private event'):'',j?j.date:'',j?j.client:'',S.n,S.done,S.avgTotal==null?'':Math.round(S.avgTotal),S.prints,S.pFail,c?c.addons:'',c?c.rev:'',c?c.cost:'',c?c.profit:'',c?c.paid:'',c?c.owed:'']);
   }
   download('booth-event-summary.csv',csv(rows));
 }

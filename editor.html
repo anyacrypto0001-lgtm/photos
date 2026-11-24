@@ -272,6 +272,7 @@ body.webmode:not(.designing) .screen{pointer-events:none}
 #webBar{position:fixed;top:0;left:0;right:0;z-index:35;display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;padding:max(8px,env(safe-area-inset-top)) 14px 8px;background:#141014;color:#fbf5ef;border-bottom:1px solid #3b2f3a;font-family:Outfit,system-ui,sans-serif}
 #webBar[hidden]{display:none}
 #webBar a.mini{display:inline-flex;align-items:center;text-decoration:none;color:inherit;border:1px solid #3b2f3a;border-radius:999px;padding:8px 14px;font-size:14px}
+#webBar .webbooth{font-size:13px;font-weight:700;color:#ff5a7a;border:1px solid #ff5a7a;border-radius:999px;padding:3px 10px}#webBar .webbooth:empty{display:none}
 #webBar b{margin-right:auto}#webBar .hint{margin:0;opacity:.7;font-size:13px}
 body.designing #webBar{display:none}
 .pwform{display:flex;gap:10px;margin-bottom:16px}
@@ -615,6 +616,7 @@ textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);borde
 
     <section class="spane" data-pane="booth" role="tabpanel" hidden>
       <fieldset><legend>Staff and idle</legend>
+        <label>Booth name (shown in the online editor, so you know which booth you're updating)<input data-k="boothName" type="text" maxlength="40" placeholder="Booth 1" autocomplete="off"></label>
         <label>Open settings with<select data-k="lockType"><option value="pin">A PIN (numbers only)</option><option value="password">A password (letters and numbers)</option></select></label>
         <label data-lock="pin">Staff PIN (4 to 8 numbers)<input data-k="pin" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off"></label>
         <label data-lock="password">Staff password (at least 4 characters)<input data-k="password" type="text" maxlength="40" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
@@ -675,7 +677,7 @@ textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);borde
     <div id="webPick" hidden><div id="webEvents"></div><button class="ghost" id="webOut">Sign out</button></div>
   </div>
 </div>
-<div id="webBar" hidden><a class="mini" id="webBack" href="analytics.html">← Analytics</a><b id="webName"></b><span id="webState" class="hint"></span>
+<div id="webBar" hidden><a class="mini" id="webBack" href="analytics.html">← Analytics</a><b id="webName"></b><span id="webBooth" class="webbooth"></span><span id="webState" class="hint"></span>
   <button class="mini" id="webEd">Edit print templates</button><button class="mini" id="webDz">Customise booth screens</button>
   <button class="go small" id="webSave">Save to booth</button><button class="mini" id="webSwitch">Other event</button></div>
 <div id="toast" role="status"></div>
@@ -2601,7 +2603,7 @@ const LP_WEB=!!window.LP_WEB,LS_KEY=LP_WEB?'petique.web.settings':'petique.setti
 const DEF={eventName:'Le Petique',eventSub:'Smile, darling',showDate:true,frameBg:'#fbf5ef',frameInk:'#1d1620',accent:'#ff5a7a',font:'Fraunces',
   countdown:3,stripShots:4,gifFrames:4,boomSec:1.6,mirror:true,mirrorOut:false,sound:true,cameraId:'',filter:'none',customFonts:[],customFilters:[],
   modes:{strip:true,grid:true,single:true,gif:true,boom:true,scribble:false},
-  scribbleSec:30,scribbleFinalSec:5,scribbleSpeed:1,scribbleQuality:'standard',scribbleFlip:true,scribbleEarly:true,scribbleReady:'Get ready to scribble on the glass!',scribbleText:'Scribble!',scribbleFinalText:'Now strike a pose for your photo!',dupStrip:true,autoDownload:false,idle:45,pin:'1234',lockType:'pin',password:'',
+  scribbleSec:30,scribbleFinalSec:5,scribbleSpeed:1,scribbleQuality:'standard',scribbleFlip:true,scribbleEarly:true,scribbleReady:'Get ready to scribble on the glass!',scribbleText:'Scribble!',scribbleFinalText:'Now strike a pose for your photo!',dupStrip:true,autoDownload:false,idle:45,pin:'1234',lockType:'pin',password:'',boothName:'Booth 1',
   printMode:'auto',printCopies:1,print:{printer:'',stripPrinter:'',papers:{}},camRes:'1080',camRot:0,eventFolders:false,camAlwaysOn:false,cameraLabel:'',photoGif:false,livePhoto:false,liveSec:1.6,gifFrameSec:.7,delivery:'local',qrText:'Scan to get your photo',qrHost:'auto',qrHostCustom:'',wifiName:'',wifiPass:'',wifiSec:'WPA',
   cloudViewer:'',cloudUrl:'',cloudKey:'',cloudBucket:'photobooth',cloudFolder:'',tpl:null,tplPreset:'classic'};
 const RANGE={printCopies:[1,10],gifFrameSec:[.2,3],liveSec:[.6,4],scribbleSec:[5,180],scribbleFinalSec:[1,30],countdown:[1,10],stripShots:[3,4],gifFrames:[2,10],boomSec:[1,3],idle:[15,600]};
@@ -3131,7 +3133,7 @@ function fitInto(x,src,cx,cy,cw,ch){
 }
 /* The sheet that goes to the printer: the paper at 300 dpi, with a strip drawn twice side by side. */
 function composeCanvas(src,spec){
-  const P=PAPER_LIST[spec.paper]||PAPER_LIST['4x6'],port=src.height>=src.width,W=Math.round((port?P.w:P.h)*300),H=Math.round((port?P.h:P.w)*300);
+  const P=PAPER_LIST[spec.paper]||PAPER_LIST['4x6'],port=src.height>=src.width,dpi=300*(spec.k||1),W=Math.round((port?P.w:P.h)*dpi),H=Math.round((port?P.h:P.w)*dpi); /* spec.k: 2 when the design was drawn for a 600 dpi print */
   const cls=spec.strip?'2x6':P.cls,cut=spec.strip?'2inch':'standard';
   if(!spec.strip&&src.width===W&&src.height===H)return{exact:true,cls,cut,w:W,h:H};
   const c=mk(W,H),x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,W,H);x.imageSmoothingQuality='high';
@@ -3302,7 +3304,8 @@ function drawEl(x,e,opt){
 }
 /* Draws a finished frame: background, decorations set behind photos, photos (or placeholders), overlay PNG, then the elements. */
 function renderTpl(m,shots,opt){
-  opt=opt||{};const T=opt.tpl||getTpl(m),L=dims(m,T),c=mk(L.w,L.h),x=c.getContext('2d'),photo=PHOTO_MODES.includes(TM(m));
+  opt=opt||{};const T=opt.tpl||getTpl(m),L=dims(m,T),K=opt.scale>1?opt.scale:1,c=mk(Math.round(L.w*K),Math.round(L.h*K)),x=c.getContext('2d'),photo=PHOTO_MODES.includes(TM(m));
+  if(K!==1)x.scale(K,K); /* drawn in the design's own coordinates, only sharper: nothing moves */
   const bgi=assets[tplKey(T,'bg')],ovi=assets[tplKey(T,'ov')];
   if(photo){
     x.fillStyle=T.bg||'#fff';x.fillRect(0,0,L.w,L.h);if(bgi)drawCover(x,bgi,0,0,L.w,L.h);
@@ -3653,7 +3656,7 @@ async function runSession(){
     if(scribJob){$('#workMsg').textContent='Making your scribble video…';try{scribVid=await scribJob(p=>setProg(.8*p))}catch(e){console.warn(e);toast('The scribble video could not be made')}
       $('#workMsg').textContent='Developing your photos…'}
     await fontsReady();await wait(30);
-    let blob,kind;
+    let blob,kind,pspec=null;
     const anim=mode==='gif'||mode==='boom',sid=newSid(),liveOk=live&&clips.length===frames.length&&clips.every(c=>c&&c.length);
     const vcodec=(anim||(photoMode&&S.photoGif)||liveOk)?await storyCodec():null,vx=vcodec?'mp4':'gif'; /* animations become story MP4s when possible */
     const dl=deliveryFor(sid,anim?vx:'jpg',[photoMode&&S.photoGif&&'gif:'+vx,liveOk&&'live:'+vx,scribVid&&'video:'+extOf(scribVid)].filter(Boolean),anim?mode:'');
@@ -3665,7 +3668,10 @@ async function runSession(){
       if(vid)blob=vid;
       else{const bytes=await encodeGif(seq.length,w,h,i=>seq[i].getContext('2d').getImageData(0,0,w,h).data,mode==='boom'?8:60,setProg);blob=new Blob([bytes],{type:'image/gif'})}
       kind='gif';
-    }else{const c=renderTpl(mode,frames,{qrUrl:dl.qr});setProg(.3);blob=await toBlob(c,'image/jpeg',.94);kind='photo'}
+    }else{
+      await ensurePrinters(); /* the printer's quality (300×300 or 300×600 dpi) sets how sharp the print is drawn */
+      pspec=PHOTO_MODES.includes(TM(mode))?printSpec(getTpl(mode)):null;pspec&&(pspec.k=printScale(printClass(pspec)));
+      const c=renderTpl(mode,frames,{qrUrl:dl.qr,scale:pspec?pspec.k:1});setProg(.3);blob=await toBlob(c,'image/jpeg',.94);kind='photo'}
     const extras=[];
     if(photoMode&&S.photoGif){ /* bonus GIF that flips through the session's photos, framed by the GIF design */
       $('#workMsg').textContent='Making your GIF…';const G=LAYOUT.gif;
@@ -3688,7 +3694,7 @@ async function runSession(){
     setProg(1);
     evStat('session',mode);
     const item={id:String(Date.now()),t:Date.now(),ev:S.eventId||'',ses:SES?SES.id:'',shots:frames.length,mode,kind,blob,extras,sid,qrUrl:dl.qr,cloudPath:dl.cloudPath||null,cloud:dl.cloudPath?'pending':null,cloudDone:{},
-      print:kind==='photo'&&PHOTO_MODES.includes(TM(mode))?printSpec(getTpl(mode)):null}; /* how this session prints: paper, and two strips per sheet for strips */
+      print:kind==='photo'&&pspec?pspec:null}; /* how this session prints: paper, two strips per sheet for strips, and k (1 or 2) for how sharp it was drawn */
     if(SERVER){$('#workMsg').textContent='Saving…';const ok=await upload(item);if(dl.local&&!ok)item.qrUrl=null}
     try{await idb.add(item)}catch(e){console.warn('Gallery save failed',e)}
     if(S.autoDownload){download(item);item.extras.forEach((x,i)=>setTimeout(()=>download(item,x.part),400*(i+1)))}
@@ -3737,6 +3743,15 @@ function printerCfgs(){
   P.printers=L;if(L.length)saveSettings();return L;
 }
 async function ensurePrinters(){if(PRINTERS==null&&canDirect())await loadPrinters()}
+/* How much sharper than 300 dpi a print is drawn: the printer's chosen quality sets it (300×300 → 1×, 300×600 → 2×).
+   A 2×6 strip is 600×1800 px at 1× and 1200×3600 px at 2×; the printer's 300×600 setting then uses all of its 600×3600 dots. */
+function printScale(cls){
+  if(!useDirect()||!PRINTERS)return 1;
+  const c=printerCfgs().find(c=>handles(c,cls)&&pinfo(c.name)&&(pinfo(c.name).qualities||[]).length);if(!c)return 1;
+  const ql=pinfo(c.name).qualities,q=ql.find(x=>x.id===c.quality)||(c.quality==='fine'?ql[Math.min(1,ql.length-1)]:ql[0]);
+  const dpi=q?Math.max(+q.x||0,+q.y||0):0;return dpi>=450?2:1; /* 300 stays 1×, 600 is 2× (never more: the files get large) */
+}
+const printClass=spec=>spec.strip?'2x6':PAPER_LIST[spec.paper].cls;
 function autoPickPrinter(){
   const P=S.print;if(!PRINTERS||!PRINTERS.length)return;let ch=false;const L=printerCfgs();
   if(!L.length&&!P.autoAdded){P.autoAdded=true;ch=true;const d=PRINTERS.find(p=>p.dnp)||PRINTERS.find(p=>/dnp|rx1|ds-?rx/i.test(p.name));if(d)L.push(newPrinterCfg(d.name))}
@@ -3791,9 +3806,10 @@ function calUi(c,inf){const k=calOf(c),num=(f,l,v,min,max,st)=>`<label>${l}<inpu
     <div class="btnrow"><button data-pa="calsheet">Print calibration sheet</button>${inf&&inf.cut?'<button data-pa="calstrip">Calibration strip (two strips)</button>':''}<button data-pa="calreset">Reset</button></div>
   </details>`}
 /* Apply a printer's calibration to the finished sheet: scale about the centre, then shift. Off-paper parts are white. */
-async function calibrate(blob,cfg){
+async function calibrate(blob,cfg,cls){
   if(!calOn(cfg))return blob;
-  const k=calOf(cfg),img=await blobImgOnce(blob),W=img.width,H=img.height,c=mk(W,H),x=c.getContext('2d'),px=300/25.4,s=k.s/100;
+  const k=calOf(cfg),img=await blobImgOnce(blob),W=img.width,H=img.height,c=mk(W,H),x=c.getContext('2d'),s=k.s/100;
+  const P=PAPER_LIST[cls==='2x6'?'4x6':cls],px=(P?Math.max(W,H)/Math.max(P.w,P.h):300)/25.4; /* pixels per mm: the sheet may be drawn at 600 dpi */
   x.fillStyle='#fff';x.fillRect(0,0,W,H);x.imageSmoothingQuality='high';
   const dw=W*s,dh=H*s;x.drawImage(img,(W-dw)/2+k.x*px,(H-dh)/2+k.y*px,dw,dh);
   return toBlob(c,'image/jpeg',.95);
@@ -3874,7 +3890,7 @@ async function sendPrint(blob,cls,only,cut){
     if((inf.qualities||[]).length)q.push('quality='+enc(cfg.quality||'std')); /* strips cut at every quality (tested at 300×300 and 300×600) */
   }
   toast(`Printing on ${cfg.name}…`);
-  try{blob=await calibrate(blob,cfg)}catch(e){console.warn('calibration',e)} /* this printer's offset and size, if set */
+  try{blob=await calibrate(blob,cfg,cls)}catch(e){console.warn('calibration',e)} /* this printer's offset and size, if set */
   try{const r=await(await fetch('/api/print?'+q.join('&'),{method:'POST',headers:{'Content-Type':'image/jpeg'},body:blob})).json();
     if(r.ok){toast('Sent to the printer');return true}lastPrintErr=String(r.error||'unknown error').slice(0,160);toast('Print failed: '+(r.error||'unknown error'));return false}
   catch(e){lastPrintErr='The booth server did not answer';toast('Print failed: the booth server did not answer');return false}
@@ -3907,7 +3923,7 @@ async function printItem(it){
   if(useDirect()){if(await directPrint(it))evStat('print',null,Math.round(num('printCopies'))||1);return}
   try{
     const img0=await blobImg(it.blob),sh=await composeSheet(img0,itemSpec(it,img0)),img=sh.blob?await blobImg(sh.blob):img0;
-    const url=img.src,wIn=+(img.width/300).toFixed(2),hIn=+(img.height/300).toFixed(2);
+    const kk=itemSpec(it,img0).k||1,url=img.src,wIn=+(img.width/(300*kk)).toFixed(2),hIn=+(img.height/(300*kk)).toFixed(2); /* a sheet drawn at 600 dpi is still the same paper */
     if(img!==img0)URL.revokeObjectURL(img0.src);if(printURL)URL.revokeObjectURL(printURL);printURL=url; /* keep only the picture on the print page */
     $('#pageSize').textContent=`@page{size:${wIn}in ${hIn}in;margin:0}`;
     const p=$('#printImg');p.style.width=wIn+'in';p.style.height=hIn+'in';
@@ -4665,7 +4681,8 @@ function paperUi(T){
   const P=PAPER_LIST[spec.paper],shape=Math.abs((dw/dh)/(P.w/P.h)-1)>.04&&Math.abs((dw/dh)/(P.h/P.w)-1)>.04;
   const note=spec.strip?(spec.copies===2?'Each print is one 4×6 sheet with two 2×6 strips; the printer cuts it down the middle (DNP printers: the 2-inch cut is turned on for you). Guests still get a single strip.':'Each print is one 4×6 sheet with a single strip on the left half.')
     :`Each print is one ${P.l} sheet.${shape&&!spec.strip?' This design is a different shape from the paper, so it prints centred with white margins.':''}`;
-  h+=`<details ${bits.length?'open':''} class="paperx"><summary>Extra options</summary>${bits.join('')||'<p class="hint">No extra options for this size.</p>'}</details><p class="hint">${note}</p>
+  const kk=printScale(printClass(spec)),sharp=kk>1?`<p class="hint">The printer is set to its sharper quality, so this design prints at <b>${Math.round(d.w*kk)}×${Math.round(d.h*kk)} px</b> (${spec.strip?'each strip, ':''}${kk*300} dpi) instead of ${d.w}×${d.h}. Nothing moves; photos and an overlay made at that bigger size keep their detail.</p>`:'';
+  h+=`<details ${bits.length?'open':''} class="paperx"><summary>Extra options</summary>${bits.join('')||'<p class="hint">No extra options for this size.</p>'}</details><p class="hint">${note}</p>${sharp}
     <p class="hint">Sheet preview</p><canvas data-sheetprev class="sheetprev" aria-label="Preview of one printed sheet"></canvas>`;
   return h;
 }
@@ -4708,7 +4725,8 @@ function edPanel(){
   h+=`<section><h3>Colour style <small>recolours every layout</small></h3><div class="presets">${Object.entries(PRESETS).map(([k,P])=>
     `<button class="preset" data-preset="${k}" aria-pressed="${S.tplPreset===k}"><i><b style="background:${P.bg}"></b><b style="background:${P.ink}"></b><b style="background:${P.accent}"></b></i>${P.l}</button>`).join('')}</div></section>`;
   if(photo)h+=`<section><h3>Background</h3><div class="row2"><label>Colour<input type="color" data-t="bg" value="${esc(T.bg)}"></label><div style="display:flex;flex-direction:column;gap:6px;justify-content:flex-end">${fileBtn(assets[tplKey(T,'bg')]?'Change picture':'Add picture',`data-up="${tplKey(T,'bg')}"`)}${assets[tplKey(T,'bg')]?`<button class="mini danger" data-rm="${tplKey(T,'bg')}">Remove picture</button>`:''}</div></div></section>`;
-  h+=`<section><h3>Overlay PNG <small>${L.w}×${L.h}px</small></h3><p class="hint">A transparent PNG drawn over the photos and under your elements. Design it at exactly this size, for example in Canva.</p>
+  const ok2=printScale(printClass(printSpec(edT())));
+  h+=`<section><h3>Overlay PNG <small>${L.w}×${L.h}px${ok2>1?` (or ${L.w*ok2}×${L.h*ok2}px for the sharper print setting)`:''}</small></h3><p class="hint">A transparent PNG drawn over the photos and under your elements. Design it at exactly this size, for example in Canva.</p>
     <div class="btnrow">${fileBtn(assets[tplKey(T,'ov')]?'Replace overlay':'Upload overlay',`data-up="${tplKey(T,'ov')}"`,'image/png,image/webp')}${assets[tplKey(T,'ov')]?`<button class="danger" data-rm="${tplKey(T,'ov')}">Remove</button>`:''}</div></section>`;
   const keep=$('#edPanel').scrollTop;$('#edPanel').innerHTML=h;$('#edPanel').scrollTop=it&&!ED.keepScroll?0:keep;ED.keepScroll=false;
   drawSheetPrev();
@@ -5371,7 +5389,8 @@ async function designPack(c,eid){
 const designSt=()=>{if(!S.designSync||typeof S.designSync!=='object')S.designSync={};const d=S.designSync;d.webTs=d.webTs||0;d.ev=d.ev||{};
   if(d.v!==2){d.v=2;Object.values(d.ev).forEach(r=>{delete r.sig})} /* v2: designs uploaded without their pictures (a bucket that refused PNG) are sent again */
   return d};
-const designSig=eid=>hashStr(JSON.stringify(designData(eid)))+(eid===S.eventId?':'+designRev:'');
+const boothName=()=>String(S.boothName||'').trim().slice(0,40)||'Booth';
+const designSig=eid=>hashStr(JSON.stringify(designData(eid))+'|'+boothName())+(eid===S.eventId?':'+designRev:'');
 async function designUp(c){
   const st=designSt();
   for(const eid of Object.keys(S.events||{})){
@@ -5381,7 +5400,10 @@ async function designUp(c){
     const pk=await designPack(c,eid),name=eid===S.eventId?(S.eventName||S.events[eid].name):S.events[eid].name,ts=Date.now();
     try{
       const r=await fetch(`${c.url}/rest/v1/booth_designs`,{method:'POST',headers:cloudHeaders(c,{'Content-Type':'application/json',Prefer:'return=minimal'}),
-        body:JSON.stringify({event_id:eid,name,data:pk.data,assets:pk.assets,ts,source:'booth'})});
+        body:JSON.stringify({event_id:eid,name,data:pk.data,assets:pk.assets,ts,source:'booth',booth:boothName()})});
+      if(!r.ok&&/booth/i.test(await r.clone().text().catch(()=>''))){ /* the SQL without the booth name column: send without it */
+        const r2=await fetch(`${c.url}/rest/v1/booth_designs`,{method:'POST',headers:cloudHeaders(c,{'Content-Type':'application/json',Prefer:'return=minimal'}),
+          body:JSON.stringify({event_id:eid,name,data:pk.data,assets:pk.assets,ts,source:'booth'})});if(r2.ok){rec.upTs=ts;rec.sig=sig;saveSettings();continue}}
       if(r.ok){rec.upTs=ts;rec.assets=Object.fromEntries(Object.entries(pk.assets).map(([k,v])=>[k,v.p]));
         rec.tries=pk.failed?(rec.tries||0)+1:0;if(!pk.failed||rec.tries>=5)rec.sig=sig; /* pictures that failed are tried again (up to 5 times) */
         saveSettings()}
@@ -5497,7 +5519,7 @@ setInterval(()=>{const ra=+S.ui.share.returnAfter||0,lim=screen==='review'&&revi
 setInterval(()=>{if(screen==='attract'&&S.showDate)$('#aDate').textContent=dateStr()},60000);
 
 applyTheme();loadAssets().then(applyTheme);loadCachedFonts().then(()=>document.fonts.ready).then(applyTheme);loadCustomFonts().then(()=>document.fonts.ready).then(applyTheme);loadCustomLuts().then(()=>setFilter(filter));ensureEvents();trackEventUse();fontsReady();
-if(!LP_WEB){syncCamera();setInterval(syncCamera,3000);detectServer();setTimeout(cacheFonts,6000);setTimeout(()=>syncCloud(false),4000)}
+if(!LP_WEB){syncCamera();setInterval(syncCamera,3000);detectServer().then(()=>ensurePrinters());setTimeout(cacheFonts,6000);setTimeout(()=>syncCloud(false),4000)}
 /* ---------- the online editor (editor.html = this page with LP_WEB set) ----------
    Sign in with the Supabase details and PIN, pick an event, edit its print templates and booth screens with the same
    editors the booth has, and Save to booth: the booth takes the new version over within about a minute. */
@@ -5507,7 +5529,7 @@ if(LP_WEB){
   let anCfg={};try{anCfg=JSON.parse(localStorage.getItem('an.cfg')||'{}')||{}}catch(e){}
   if(!S.cloudUrl&&anCfg.url)S.cloudUrl=anCfg.url;if(!S.cloudKey&&anCfg.key)S.cloudKey=anCfg.key;
   if(!S.cloudBucket)S.cloudBucket='pending'; /* the real bucket comes with the booth's designs */
-  let wpin=wsess.get('lpweb.pin')||wsess.get('an.pin')||'',dirty=false;
+  let wpin=wsess.get('lpweb.pin')||wsess.get('an.pin')||'',dirty=false,booth='';
   document.body.classList.add('webmode');
   async function wrpc(fn,body){
     const c=cloudCfg();if(!c)throw new Error('Enter the Supabase URL, key and bucket.');
@@ -5520,7 +5542,7 @@ if(LP_WEB){
   async function showEvents(){
     const list=await wrpc('designs_list',{p_pin:wpin});
     $('#webLogin').hidden=true;$('#webPick').hidden=false;gate(list.length?'Choose the event to edit.':'No designs are online yet. Open the booth with Online delivery set up (Settings → Sharing); it uploads its designs within a minute. Then reload this page.');
-    $('#webEvents').innerHTML=list.map(e=>`<button class="mini webev" data-ev="${esc(e.event_id)}"><b>${esc(e.name||'Event')}</b><em>${e.source==='web'?'edited online':'from the booth'} · ${new Date(e.ts).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</em></button>`).join('');
+    $('#webEvents').innerHTML=list.map(e=>`<button class="mini webev" data-ev="${esc(e.event_id)}"><b>${esc(e.name||'Event')}</b><em>${e.booth?esc(e.booth)+' · ':''}${e.source==='web'?'edited online':'from the booth'} · ${new Date(e.ts).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</em></button>`).join('');
   }
   async function pickEvent(eid){
     $('#webMsg').textContent='Loading the designs…';
@@ -5538,7 +5560,8 @@ if(LP_WEB){
       let missed=0;
       for(const [k,v] of Object.entries(row.assets||{})){if(k[0]==='_')continue;try{await idb.set(k,await fetchBlob(c,v.p,v.t))}catch(e){missed++}}
       await syncCustomFonts();await loadCustomFonts();saveSettings();await afterEventChange();
-      $('#webName').textContent=S.eventName||row.name||'Event';dirty=false;
+      $('#webName').textContent=S.eventName||row.name||'Event';booth=row.booth||'';dirty=false;
+      $('#webBooth').textContent=booth?'Updates: '+booth:'';
       $('#webState').textContent=`${row.source==='web'?'Last saved online':'From the booth'} ${new Date(row.ts).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}`;
       $('#webGate').hidden=true;$('#webBar').hidden=false;
       if(missed)toast(`${missed} picture${missed===1?'':'s'} could not be loaded`);
@@ -5563,7 +5586,7 @@ if(LP_WEB){
       const c=cloudCfg();saveSettings();await snapshotEvent();
       const pk=await designPack(c,S.eventId);
       await wrpc('design_save',{p_pin:wpin,p_event:S.eventId,p_name:S.eventName||'Event',p_data:pk.data,p_assets:pk.assets});
-      dirty=false;$('#webState').textContent='Saved '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})+'. The booth takes it over within a minute.';
+      dirty=false;$('#webState').textContent='Saved '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})+'. '+(booth||'The booth')+' takes it over within a minute.';
       toast(pk.failed?`Saved, but ${pk.failed} picture${pk.failed===1?'':'s'} could not be uploaded`:'Saved to the booth');
     }catch(e){toast('Could not save: '+explain(e))}
     finally{b.disabled=false;b.textContent='Save to booth'}
