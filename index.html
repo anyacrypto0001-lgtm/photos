@@ -26,6 +26,9 @@ figcaption{font-weight:700;margin:0 0 8px;color:var(--mute);font-size:14px;lette
 .wait{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--mute);padding:16px;font-size:15px}
 .btn{display:block;margin-top:12px;padding:15px;border-radius:999px;background:var(--a);color:#fff;font-weight:700;font-size:17px;text-decoration:none}
 .btn[aria-disabled=true]{opacity:.4;pointer-events:none}
+button.btn{width:100%;border:0;font:inherit;font-weight:700;font-size:17px;cursor:pointer}
+.btn.alt{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 2px rgba(255,255,255,.3);margin-top:10px}
+.note{color:var(--mute);font-size:14px;margin:8px 0 0;min-height:1em}
 small{display:block;color:var(--mute);line-height:1.45}
 .err{background:var(--card);border-radius:14px;padding:22px 16px}
 </style>
@@ -50,9 +53,17 @@ small{display:block;color:var(--mute);line-height:1.45}
   var base=u+'/storage/v1/object/public/'+encodeURIComponent(b)+'/'+enc(p);
   var name=p.split('/').pop();
   var VIDEO=/^(mp4|webm|mov)$/,isVid=function(ext){return VIDEO.test(ext)};
+  var MIME={jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',gif:'image/gif',mp4:'video/mp4',webm:'video/webm',mov:'video/quicktime'};
+  var k=(q.get('k')||'').toLowerCase(); /* the booth mode for an animated session: boom or gif */
+
+  /* The phone's share sheet (Save Video / Save Image, Instagram, WhatsApp…) can take the file itself.
+     Only offered where the browser says it can share that kind of file. */
+  function canShare(ext){
+    try{return !!(navigator.share&&navigator.canShare&&window.File&&navigator.canShare({files:[new File([''],'x.'+ext,{type:MIME[ext]||''})]}))}catch(e){return false}
+  }
 
   /* what this session has: the main picture plus extras ("gif", "live", or "video:mp4") */
-  var items=[{key:'main',ext:m,url:base+'.'+m,label:isVid(m)?'Video':m==='gif'?'GIF':'Photo'}];
+  var items=[{key:'main',ext:m,url:base+'.'+m,label:k==='boom'?'Boomerang':k==='gif'||m==='gif'?'GIF':isVid(m)?'Video':'Photo'}];
   (q.get('x')||'').split('.').forEach(function(x){
     var k=x.split(':')[0],ext=(x.split(':')[1]||'gif').toLowerCase();
     if(!/^[a-z]{1,8}$/.test(k)||!/^[a-z0-9]{2,5}$/.test(ext))return;
@@ -62,23 +73,59 @@ small{display:block;color:var(--mute);line-height:1.45}
   var RANK={main:0,video:1,live:2,gif:3};items.sort(function(a,b){return (RANK[a.key]==null?9:RANK[a.key])-(RANK[b.key]==null?9:RANK[b.key])});
 
   var h='<h1>'+esc(title)+'</h1>'+(q.get('s')?'<p class="sub">'+esc(q.get('s'))+'</p>':'<p class="sub"></p>');
+  var anyShare=false,anyVid=false;
   items.forEach(function(it,i){
-    var file=name+(it.key==='main'?'':'-'+it.key)+'.'+it.ext;
+    var file=it.file=name+(it.key==='main'?'':'-'+it.key)+'.'+it.ext,share=it.share=canShare(it.ext),lab=esc(it.label.toLowerCase());
+    if(share)anyShare=true;if(isVid(it.ext))anyVid=true;
     h+='<figure id="f'+i+'">'+(items.length>1?'<figcaption>'+esc(it.label)+'</figcaption>':'')+
-      '<div class="media"><div class="wait">Getting your '+esc(it.label.toLowerCase())+'…</div></div>'+
-      '<a class="btn" aria-disabled="true" href="'+esc(it.url)+'?download='+encodeURIComponent(file)+'" download="'+esc(file)+'">Save '+esc(it.label.toLowerCase())+'</a></figure>';
+      '<div class="media"><div class="wait">Getting your '+lab+'…</div></div>'+
+      (share?'<button type="button" class="btn share" aria-disabled="true">Share or save '+lab+'</button>':'')+
+      '<a class="btn save'+(share?' alt':'')+'" aria-disabled="true" href="'+esc(it.url)+'?download='+encodeURIComponent(file)+'" download="'+esc(file)+'">'+(share?'Download ':'Save ')+lab+'</a>'+
+      (share?'<p class="note" aria-live="polite"></p>':'')+'</figure>';
   });
-  h+='<small>On iPhone, if the button just opens the picture, press and hold the picture, then choose <b>Save to Photos</b> (or <b>Add to Photos</b>).</small>';
+  h+=anyShare?'<small><b>Share or save</b> opens your phone\'s share menu: choose <b>Save Video</b> or <b>Save Image</b> to keep it in Photos, or pick Instagram, TikTok or WhatsApp to post it.</small>'
+    :anyVid?'<small>On iPhone, <b>Save</b> puts videos in Files → Downloads. Open it there, tap Share, then <b>Save Video</b> or Instagram. For a picture, press and hold it, then choose <b>Save to Photos</b>.</small>'
+    :'<small>On iPhone, if the button just opens the picture, press and hold the picture, then choose <b>Save to Photos</b> (or <b>Add to Photos</b>).</small>';
   app.innerHTML=h;
+
+  /* Fetch the file ahead of time, so tapping Share opens the share sheet at once
+     (iPhones refuse to share if the tap was more than a moment ago). */
+  function wireShare(it,fig){
+    var btn=fig.querySelector('.share'),note=fig.querySelector('.note'),fileP=null;
+    if(!btn||btn.getAttribute('data-wired'))return;
+    btn.setAttribute('data-wired','1');
+    function getFile(){
+      if(!fileP)fileP=fetch(it.url,{cache:'force-cache'}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.blob()})
+        .then(function(b){return new File([b],it.file,{type:MIME[it.ext]||b.type})})
+        .catch(function(e){fileP=null;throw e});
+      return fileP;
+    }
+    var ready=null;
+    getFile().then(function(f){ready=f}).catch(function(){});
+    btn.removeAttribute('aria-disabled');
+    btn.onclick=function(){
+      note.textContent='';
+      var go=function(f){
+        return navigator.share({files:[f]}).catch(function(e){
+          if(e&&e.name==='AbortError')return; /* the guest closed the share menu */
+          note.textContent=e&&e.name==='NotAllowedError'?'Tap Share again.':'Sharing didn\'t work here. Use Download instead.';
+        });
+      };
+      if(ready)return go(ready);
+      note.textContent='Getting it ready…';
+      getFile().then(function(f){ready=f;note.textContent='';return go(f)})
+        .catch(function(){note.textContent='Couldn\'t get the file. Use Download instead.'});
+    };
+  }
 
   /* The booth may still be uploading when the guest scans, so keep trying for a few minutes. */
   items.forEach(function(it,i){
-    var fig=document.getElementById('f'+i),box=fig.querySelector('.media'),btn=fig.querySelector('.btn'),tries=0;
+    var fig=document.getElementById('f'+i),box=fig.querySelector('.media'),btn=fig.querySelector('.save'),tries=0;
     function load(){
       var el=document.createElement(isVid(it.ext)?'video':'img');
       if(el.tagName==='VIDEO'){el.muted=true;el.loop=true;el.autoplay=true;el.playsInline=true;el.setAttribute('playsinline','');el.controls=true}
       else el.alt=it.label;
-      var ok=function(){box.innerHTML='';box.appendChild(el);btn.removeAttribute('aria-disabled');if(el.play)el.play().catch(function(){})};
+      var ok=function(){box.innerHTML='';box.appendChild(el);btn.removeAttribute('aria-disabled');wireShare(it,fig);if(el.play)el.play().catch(function(){})};
       var bad=function(){
         tries++;
         if(tries===1)box.querySelector('.wait').textContent='Still uploading from the booth… this page updates by itself.';
