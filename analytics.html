@@ -107,6 +107,7 @@ dialog label{display:grid;gap:3px;font-size:13px;color:var(--text2)}
       <option value="30">Last 30 days</option><option value="month">This month</option><option value="custom">Custom…</option>
     </select>
     <span id="fCustom" hidden><input type="date" id="fFrom" aria-label="From"> – <input type="date" id="fTo" aria-label="To"></span>
+    <a id="lnkDesign" href="editor.html" hidden title="Edit print templates and booth screens online" style="text-decoration:none"><button type="button">Design editor</button></a>
     <button id="btnRefresh" title="Reload the figures">Refresh</button>
     <button id="btnTheme" title="Switch light and dark">◐</button>
   </div>
@@ -404,6 +405,7 @@ function render(){
   $('#fEvent').value=names.includes(cur)?cur:'';
   $('#fCustom').hidden=$('#fRange').value!=='custom';
   renderOver();renderMoney();renderCmp();renderSessions();
+  $('#lnkDesign').hidden=MODE==='local';
   $('#stamp').textContent='Updated '+new Date().toLocaleTimeString()+' · '+(MODE==='local'?'from the booth laptop':'from Supabase')+' · refreshes every 30 seconds';
 }
 
@@ -526,7 +528,7 @@ function fail(e){
 }
 function showLogin(msg){
   clearInterval(timer);$('#appView').hidden=true;$('#loginView').hidden=false;
-  $('#cloudFields').hidden=MODE==='local';
+  $('#cloudFields').hidden=MODE==='local';$('#lnkDesign').hidden=MODE==='local'; /* the editor is hosted next to this page, not served by the booth laptop */
   $('#loginHint').textContent=MODE==='local'?'Enter the staff PIN or password from the booth settings.':'Enter your Supabase details once, then the PIN you set in the analytics SQL.';
   $('#cUrl').value=CFG.url||'';$('#cKey').value=CFG.key||'';
   $('#loginErr').textContent=msg||'';$('#pin').focus();
