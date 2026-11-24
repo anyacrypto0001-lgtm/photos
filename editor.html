@@ -271,6 +271,7 @@ body.webmode:not(.designing) .screen{pointer-events:none}
 .webev{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px 16px;text-align:left;height:auto}.webev em{font-style:normal;font-size:13px;opacity:.7}
 #webBar{position:fixed;top:0;left:0;right:0;z-index:35;display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;padding:max(8px,env(safe-area-inset-top)) 14px 8px;background:#141014;color:#fbf5ef;border-bottom:1px solid #3b2f3a;font-family:Outfit,system-ui,sans-serif}
 #webBar[hidden]{display:none}
+#webBar a.mini{display:inline-flex;align-items:center;text-decoration:none;color:inherit;border:1px solid #3b2f3a;border-radius:999px;padding:8px 14px;font-size:14px}
 #webBar b{margin-right:auto}#webBar .hint{margin:0;opacity:.7;font-size:13px}
 body.designing #webBar{display:none}
 .pwform{display:flex;gap:10px;margin-bottom:16px}
@@ -667,14 +668,14 @@ textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);borde
     <form id="webLogin">
       <label>Supabase project URL<input id="wUrl" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://abcdefghijkl.supabase.co"></label>
       <label>Publishable key<input id="wKey" type="text" autocomplete="off" spellcheck="false" placeholder="sb_publishable_…"></label>
-      <label>Storage bucket (the one the booth uploads photos to)<input id="wBucket" type="text" autocomplete="off" spellcheck="false" placeholder="le-petique"></label>
+      <label>Storage bucket (optional: leave empty to use the booth's)<input id="wBucket" type="text" autocomplete="off" spellcheck="false" placeholder="le-petique"></label>
       <label>Staff PIN or password<input id="wPin" type="password" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
       <button class="go" type="submit" id="wGo">Sign in</button>
     </form>
     <div id="webPick" hidden><div id="webEvents"></div><button class="ghost" id="webOut">Sign out</button></div>
   </div>
 </div>
-<div id="webBar" hidden><b id="webName"></b><span id="webState" class="hint"></span>
+<div id="webBar" hidden><a class="mini" id="webBack" href="analytics.html">← Analytics</a><b id="webName"></b><span id="webState" class="hint"></span>
   <button class="mini" id="webEd">Edit print templates</button><button class="mini" id="webDz">Customise booth screens</button>
   <button class="go small" id="webSave">Save to booth</button><button class="mini" id="webSwitch">Other event</button></div>
 <div id="toast" role="status"></div>
@@ -5355,16 +5356,21 @@ const extOfType=t=>/png/.test(t)?'png':/webp/.test(t)?'webp':/jpe?g/.test(t)?'jp
 async function sha(blob){const b=await crypto.subtle.digest('SHA-1',await blob.arrayBuffer());return Array.from(new Uint8Array(b),x=>x.toString(16).padStart(2,'0')).join('').slice(0,16)}
 /* uploads an event's pictures and returns the version to store: {data, assets:{key:{p:path,t:type}}} */
 async function designPack(c,eid){
-  const data=designData(eid),assets={};let failed=0;
+  const data=designData(eid),assets={_bucket:{p:c.bucket}};let failed=0; /* _bucket lets the online editor find the pictures without asking */
   for(const k of designKeysOf(data)){
     let b=null;try{b=await idb.get(picKey(eid,k))}catch(e){}
     if(!b)continue;
-    const path=`_designs/${eid}/${k.replace(/[^\w.-]+/g,'_')}-${await sha(b)}.${extOfType(b.type||'')}`,r=await cloudPut(c,path,b.type?b:new Blob([b],{type:'application/octet-stream'}));
+    const path=`_designs/${eid}/${k.replace(/[^\w.-]+/g,'_')}-${await sha(b)}.${extOfType(b.type||'')}`;
+    let r=await cloudPut(c,path,b.type?b:new Blob([b],{type:'application/octet-stream'}));
+    /* a bucket that only allows some file types (often just JPEG and MP4) refuses PNG, GIF and fonts: send the same bytes labelled as a JPEG. They are read back by content, not by label. */
+    if(!r.ok&&(r.status===400||r.status===415)&&/mime/i.test(r.msg||''))r=await cloudPut(c,path,new Blob([b],{type:'image/jpeg'}));
     if(r.ok)assets[k]={p:path,t:b.type||''};else{failed++;if(failed===1)cloudLog('design picture not uploaded ('+(r.status||'no connection')+'): '+(r.msg||'').slice(0,160))}
   }
   return{data,assets,failed};
 }
-const designSt=()=>{if(!S.designSync||typeof S.designSync!=='object')S.designSync={};const d=S.designSync;d.webTs=d.webTs||0;d.ev=d.ev||{};return d};
+const designSt=()=>{if(!S.designSync||typeof S.designSync!=='object')S.designSync={};const d=S.designSync;d.webTs=d.webTs||0;d.ev=d.ev||{};
+  if(d.v!==2){d.v=2;Object.values(d.ev).forEach(r=>{delete r.sig})} /* v2: designs uploaded without their pictures (a bucket that refused PNG) are sent again */
+  return d};
 const designSig=eid=>hashStr(JSON.stringify(designData(eid)))+(eid===S.eventId?':'+designRev:'');
 async function designUp(c){
   const st=designSt();
@@ -5376,18 +5382,20 @@ async function designUp(c){
     try{
       const r=await fetch(`${c.url}/rest/v1/booth_designs`,{method:'POST',headers:cloudHeaders(c,{'Content-Type':'application/json',Prefer:'return=minimal'}),
         body:JSON.stringify({event_id:eid,name,data:pk.data,assets:pk.assets,ts,source:'booth'})});
-      if(r.ok){rec.sig=sig;rec.upTs=ts;rec.assets=Object.fromEntries(Object.entries(pk.assets).map(([k,v])=>[k,v.p]));saveSettings()}
+      if(r.ok){rec.upTs=ts;rec.assets=Object.fromEntries(Object.entries(pk.assets).map(([k,v])=>[k,v.p]));
+        rec.tries=pk.failed?(rec.tries||0)+1:0;if(!pk.failed||rec.tries>=5)rec.sig=sig; /* pictures that failed are tried again (up to 5 times) */
+        saveSettings()}
       else{const t=await r.text().catch(()=>'');cloudLog('designs not saved online ('+r.status+'): '+t.replace(/\s+/g,' ').slice(0,200));return}
     }catch(e){return}
   }
 }
-async function fetchBlob(c,path){const r=await fetch(cloudPublicUrl(c,path),{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);return r.blob()}
+async function fetchBlob(c,path,type){const r=await fetch(cloudPublicUrl(c,path),{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);const b=await r.blob();return type&&b.type!==type?new Blob([b],{type}):b} /* type: the real one, when it was sent labelled as a JPEG */
 /* downloads the pictures a version needs (skipping ones already here); saved events keep fixed pictures under ev_<id>: */
 async function designDownload(c,eid,assetsMap,have){
   const keep=have||{};
   for(const [k,v] of Object.entries(assetsMap||{})){
-    if(keep[k]===v.p)continue;
-    const b=await fetchBlob(c,v.p);await idb.set(picKey(eid,k),b);keep[k]=v.p;
+    if(k[0]==='_'||keep[k]===v.p)continue;
+    const b=await fetchBlob(c,v.p,v.t);await idb.set(picKey(eid,k),b);keep[k]=v.p;
   }
   return keep;
 }
@@ -5495,7 +5503,11 @@ if(!LP_WEB){syncCamera();setInterval(syncCamera,3000);detectServer();setTimeout(
    editors the booth has, and Save to booth: the booth takes the new version over within about a minute. */
 if(LP_WEB){
   const wsess={get:k=>{try{return sessionStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{sessionStorage.setItem(k,v)}catch(e){}},del:k=>{try{sessionStorage.removeItem(k)}catch(e){}}};
-  let wpin=wsess.get('lpweb.pin')||'',dirty=false;
+  /* signed in on the analytics page (same site)? Use its Supabase details and PIN, so there is nothing to type again */
+  let anCfg={};try{anCfg=JSON.parse(localStorage.getItem('an.cfg')||'{}')||{}}catch(e){}
+  if(!S.cloudUrl&&anCfg.url)S.cloudUrl=anCfg.url;if(!S.cloudKey&&anCfg.key)S.cloudKey=anCfg.key;
+  if(!S.cloudBucket)S.cloudBucket='pending'; /* the real bucket comes with the booth's designs */
+  let wpin=wsess.get('lpweb.pin')||wsess.get('an.pin')||'',dirty=false;
   document.body.classList.add('webmode');
   async function wrpc(fn,body){
     const c=cloudCfg();if(!c)throw new Error('Enter the Supabase URL, key and bucket.');
@@ -5513,7 +5525,9 @@ if(LP_WEB){
   async function pickEvent(eid){
     $('#webMsg').textContent='Loading the designs…';
     try{
-      const row=await wrpc('design_get',{p_pin:wpin,p_event:eid}),c=cloudCfg(),d=row.data||{};
+      const row=await wrpc('design_get',{p_pin:wpin,p_event:eid}),d=row.data||{},bk=row.assets&&row.assets._bucket&&row.assets._bucket.p;
+      if(bk&&/^[\w.-]+$/.test(bk))S.cloudBucket=bk; /* the bucket the booth uses */
+      const c=cloudCfg();
       await idb.wipe();Object.keys(assets).forEach(k=>delete assets[k]);
       EVENT_KEYS.forEach(k=>{delete S[k];if(k in DEF)S[k]=clone(DEF[k])});
       S.tpls={};S.tplSel={};S.tpl={};S.ui=deepMerge(DEF_UI,{});
@@ -5522,7 +5536,7 @@ if(LP_WEB){
       S.customFonts=clone(d.customFonts||[]);S.eventId=eid;
       S.events={[eid]:{id:eid,name:row.name||S.eventName,created:Date.now(),data:{},stats:{sessions:0,byMode:{},prints:0}}};
       let missed=0;
-      for(const [k,v] of Object.entries(row.assets||{})){try{await idb.set(k,await fetchBlob(c,v.p))}catch(e){missed++}}
+      for(const [k,v] of Object.entries(row.assets||{})){if(k[0]==='_')continue;try{await idb.set(k,await fetchBlob(c,v.p,v.t))}catch(e){missed++}}
       await syncCustomFonts();await loadCustomFonts();saveSettings();await afterEventChange();
       $('#webName').textContent=S.eventName||row.name||'Event';dirty=false;
       $('#webState').textContent=`${row.source==='web'?'Last saved online':'From the booth'} ${new Date(row.ts).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}`;
@@ -5531,7 +5545,7 @@ if(LP_WEB){
     }catch(e){gate(explain(e))}
   }
   $('#webLogin').addEventListener('submit',async e=>{
-    e.preventDefault();S.cloudUrl=$('#wUrl').value.trim();S.cloudKey=$('#wKey').value.trim();S.cloudBucket=$('#wBucket').value.trim();wpin=$('#wPin').value;saveSettings();
+    e.preventDefault();S.cloudUrl=$('#wUrl').value.trim();S.cloudKey=$('#wKey').value.trim();S.cloudBucket=$('#wBucket').value.trim()||S.cloudBucket||'pending';wpin=$('#wPin').value;saveSettings();
     $('#wGo').disabled=true;
     try{await showEvents();wsess.set('lpweb.pin',wpin);$('#wPin').value=''}catch(er){gate(explain(er));if(er.message==='pin'){wpin='';wsess.del('lpweb.pin')}}
     finally{$('#wGo').disabled=false}
@@ -5556,7 +5570,7 @@ if(LP_WEB){
   });
   addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue=''}});
   /* start: sign in again silently when this tab already knows the PIN */
-  $('#wUrl').value=S.cloudUrl||'';$('#wKey').value=S.cloudKey||'';$('#wBucket').value=S.cloudBucket||'';
+  $('#wUrl').value=S.cloudUrl||'';$('#wKey').value=S.cloudKey||'';$('#wBucket').value=S.cloudBucket==='pending'?'':S.cloudBucket||'';
   if(cloudCfg()&&wpin)showEvents().catch(e=>{wpin='';gate(explain(e))});else gate();
 }
 }
