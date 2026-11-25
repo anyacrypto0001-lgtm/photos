@@ -160,6 +160,7 @@ body.mgr tr.clk:hover td{background:none}
 <dialog id="jobDlg"><form method="dialog" id="jobForm"></form></dialog>
 <div id="tip"></div>
 
+<script src="config.js"></script>
 <script>
 (function(){
 'use strict';
@@ -174,6 +175,8 @@ const STEPS={ready:'Camera screen',work:'Making the photo',review:'Results',attr
 let MODE='local',CFG={},PIN='',AUTH=null,ROLE='owner',DATA={events:[],jobs:[]},ALL=null,tab='over',timer=0,openedOnUse=false;
 const isOwner=()=>MODE==='local'||ROLE==='owner'; /* the laptop page is the owner's; online, the account's role decides */
 try{CFG=JSON.parse(store.get('an.cfg')||'{}')||{}}catch(e){CFG={}}
+/* config.js next to this page (uploaded once by the owner) holds the project address and public key, so nobody has to type them */
+if(!(CFG.url&&CFG.key)&&window.LP_SITE&&/^https:\/\/[a-z0-9]+\.supabase\.co$/i.test(LP_SITE.url||'')&&LP_SITE.key)CFG={url:LP_SITE.url,key:LP_SITE.key};
 let CUR=store.get('an.cur');if(CUR==null)CUR='$';
 
 /* ---------- formatting ---------- */

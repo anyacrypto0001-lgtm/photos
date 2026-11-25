@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#141014">
 <title>Le Petique Online Editor</title>
-<script>window.LP_WEB=1</script>
+<script>window.LP_WEB=1</script><script src="config.js"></script>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23141014'/%3E%3Crect x='22' y='8' width='20' height='48' rx='2' fill='%23fbf5ef'/%3E%3Crect x='25' y='12' width='14' height='10' fill='%23ff5a7a'/%3E%3Crect x='25' y='25' width='14' height='10' fill='%23ff5a7a'/%3E%3Crect x='25' y='38' width='14' height='10' fill='%23ff5a7a'/%3E%3C/svg%3E">
 <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23141014'/%3E%3Crect x='22' y='8' width='20' height='48' rx='2' fill='%23fbf5ef'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -5770,6 +5770,8 @@ if(LP_WEB){
   /* signed in on the analytics page (same site)? Use its Supabase details and sign-in, so there is nothing to type again */
   let anCfg={};try{anCfg=JSON.parse(localStorage.getItem('an.cfg')||'{}')||{}}catch(e){}
   if(!S.cloudUrl&&anCfg.url)S.cloudUrl=anCfg.url;if(!S.cloudKey&&anCfg.key)S.cloudKey=anCfg.key;
+  /* or from config.js next to this page (uploaded once by the owner), so nobody has to type them */
+  const site=window.LP_SITE||{};if(!S.cloudUrl&&/^https:\/\/[a-z0-9]+\.supabase\.co$/i.test(site.url||'')&&site.key){S.cloudUrl=site.url;S.cloudKey=site.key}
   if(!S.cloudBucket)S.cloudBucket='pending'; /* the real bucket comes with the booth's designs */
   let dirty=false,booth='';
   document.body.classList.add('webmode');

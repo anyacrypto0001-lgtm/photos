@@ -77,6 +77,7 @@ section h3{margin:0;font-size:16px;display:flex;justify-content:space-between;al
   <div class="body" id="body"><div id="form"></div><iframe id="pv" title="Live preview" src="index.html?preview"></iframe></div>
 </div>
 <div id="toast" role="status"></div>
+<script src="config.js"></script>
 <script>
 (function(){
 'use strict';
@@ -106,6 +107,8 @@ var TABS=[['look','Look'],['hero','Top banner'],['about','About'],['packages','P
 
 var CFG={},AUTH=null,D=null,SAVED='',tab='look',enq=null,newEnq=0,pvReady=false;
 try{CFG=JSON.parse(store.get('an.cfg')||'{}')||{}}catch(e){CFG={}}
+/* config.js next to this page (uploaded once by the owner) holds the project address and public key, so nobody has to type them */
+if(!(CFG.url&&CFG.key)&&window.LP_SITE&&/^https:\/\/[a-z0-9]+\.supabase\.co$/i.test(LP_SITE.url||'')&&LP_SITE.key)CFG={url:LP_SITE.url,key:LP_SITE.key};
 function isObj(x){return x&&typeof x==='object'&&!Array.isArray(x)}
 function merge(a,b){var o={},k;for(k in a)o[k]=a[k];if(isObj(b))for(k in b){if(isObj(a[k])&&isObj(b[k]))o[k]=merge(a[k],b[k]);else if(b[k]!==undefined&&b[k]!==null)o[k]=b[k]}return o}
 var clone=function(x){return JSON.parse(JSON.stringify(x))};
