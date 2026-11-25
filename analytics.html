@@ -76,6 +76,10 @@ dialog label{display:grid;gap:3px;font-size:13px;color:var(--text2)}
 .hint{font-size:13px;color:var(--muted)}
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
 [hidden]{display:none!important}
+body.mgr .own{display:none!important}   /* managers only look: owner-only controls are hidden (the database refuses them too) */
+body.mgr tr.clk{cursor:default}
+body.mgr tr.clk:hover td{background:none}
+.who{font-size:13px;color:var(--muted);white-space:nowrap}
 @media (max-width:560px){.cards{grid-template-columns:1fr}.kpi .v{font-size:26px}.two{grid-template-columns:1fr}}
 </style>
 </head>
@@ -87,12 +91,30 @@ dialog label{display:grid;gap:3px;font-size:13px;color:var(--text2)}
     <p class="hint" id="loginHint">Enter the staff PIN or password from the booth settings.</p>
     <form id="loginForm">
       <div id="cloudFields" hidden>
-        <label for="cUrl">Supabase project URL</label><input id="cUrl" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://abcdefghijkl.supabase.co">
-        <label for="cKey">Publishable key</label><input id="cKey" type="text" autocomplete="off" spellcheck="false" placeholder="sb_publishable_…">
+        <div id="cfgFields">
+          <label for="cUrl">Supabase project URL</label><input id="cUrl" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://abcdefghijkl.supabase.co">
+          <label for="cKey">Publishable key</label><input id="cKey" type="text" autocomplete="off" spellcheck="false" placeholder="sb_publishable_…">
+        </div>
+        <label for="cMail">Email</label><input id="cMail" type="email" autocomplete="username" autocapitalize="off" spellcheck="false">
+        <label for="cPass">Password</label><input id="cPass" type="password" autocomplete="current-password" autocapitalize="off" spellcheck="false">
       </div>
-      <label for="pin">Staff PIN or password</label><input id="pin" type="password" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <div id="pinField"><label for="pin">Staff PIN or password</label><input id="pin" type="password" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
       <p class="err" id="loginErr" role="alert"></p>
       <button class="primary" style="width:100%;margin-top:6px">Open analytics</button>
+      <p style="text-align:center;margin:12px 0 0" id="forgotRow" hidden><button type="button" class="link" id="forgot">Forgot your password?</button></p>
+    </form>
+  </div>
+</div>
+
+<div id="pwView" class="login" hidden>
+  <div class="card">
+    <h1>Set your password</h1>
+    <p class="hint" id="pwHint">Choose a password for your account. Use at least 8 characters.</p>
+    <form id="pwForm">
+      <label for="pw1">New password</label><input id="pw1" type="password" autocomplete="new-password" minlength="8" required>
+      <label for="pw2">Type it again</label><input id="pw2" type="password" autocomplete="new-password" minlength="8" required>
+      <p class="err" id="pwErr" role="alert"></p>
+      <button class="primary" style="width:100%;margin-top:6px">Save password and open</button>
     </form>
   </div>
 </div>
@@ -108,7 +130,9 @@ dialog label{display:grid;gap:3px;font-size:13px;color:var(--text2)}
     </select>
     <span id="fCustom" hidden><input type="date" id="fFrom" aria-label="From"> – <input type="date" id="fTo" aria-label="To"></span>
     <a id="lnkDesign" href="editor.html" hidden title="Edit print templates and booth screens online" style="text-decoration:none"><button type="button">Design editor</button></a>
+    <span class="who" id="who" hidden></span>
     <button id="btnRefresh" title="Reload the figures">Refresh</button>
+    <button id="btnOut" title="Sign out" hidden>Sign out</button>
     <button id="btnTheme" title="Switch light and dark">◐</button>
   </div>
   <nav class="tabs" role="tablist">
@@ -116,7 +140,8 @@ dialog label{display:grid;gap:3px;font-size:13px;color:var(--text2)}
     <button role="tab" data-tab="money" aria-selected="false">Events &amp; money</button>
     <button role="tab" data-tab="cmp" aria-selected="false">Compare</button>
     <button role="tab" data-tab="ses" aria-selected="false">Sessions</button>
-    <button role="tab" data-tab="photos" aria-selected="false" id="tabPhotos" hidden>Online photos</button>
+    <button role="tab" data-tab="photos" aria-selected="false" id="tabPhotos" class="own" hidden>Online photos</button>
+    <button role="tab" data-tab="people" aria-selected="false" id="tabPeople" class="own" hidden>People</button>
   </nav>
 </div></header>
 
@@ -126,6 +151,7 @@ dialog label{display:grid;gap:3px;font-size:13px;color:var(--text2)}
   <section id="tab-cmp" hidden></section>
   <section id="tab-ses" hidden></section>
   <section id="tab-photos" hidden></section>
+  <section id="tab-people" hidden></section>
   <p class="hint" id="stamp" style="margin-top:18px"></p>
 </main>
 </div>
@@ -138,13 +164,14 @@ dialog label{display:grid;gap:3px;font-size:13px;color:var(--text2)}
 'use strict';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}},del(k){try{localStorage.removeItem(k)}catch(e){}}};
 const sess={get(k){try{return sessionStorage.getItem(k)}catch(e){return null}},set(k,v){try{sessionStorage.setItem(k,v)}catch(e){}},del(k){try{sessionStorage.removeItem(k)}catch(e){}}};
 const MODE_NAMES={strip:'Photo strip',grid:'Grid',single:'Single',gif:'GIF',boom:'Boomerang',scribble:'Scribble'};
 const modeName=m=>MODE_NAMES[m]||(m?m[0].toUpperCase()+m.slice(1):'Unknown');
 const STEPS={ready:'Camera screen',work:'Making the photo',review:'Results',attract:'Start screen',pick:'Choosing a mode',design:'Choosing a design',unknown:'Unknown'};
 
-let MODE='local',CFG={},PIN='',DATA={events:[],jobs:[]},ALL=null,tab='over',timer=0,openedOnUse=false;
+let MODE='local',CFG={},PIN='',AUTH=null,ROLE='owner',DATA={events:[],jobs:[]},ALL=null,tab='over',timer=0,openedOnUse=false;
+const isOwner=()=>MODE==='local'||ROLE==='owner'; /* the laptop page is the owner's; online, the account's role decides */
 try{CFG=JSON.parse(store.get('an.cfg')||'{}')||{}}catch(e){CFG={}}
 let CUR=store.get('an.cur');if(CUR==null)CUR='$';
 
@@ -158,10 +185,33 @@ const num=v=>{const n=parseFloat(v);return isFinite(n)?n:0};
 const ymd=t=>{const d=new Date(t),p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())};
 
 /* ---------- data access: the booth laptop (local) or Supabase (online) ---------- */
-function cloudHeaders(){const h={apikey:CFG.key,'Content-Type':'application/json'};if(/^eyJ/.test(CFG.key||''))h.Authorization='Bearer '+CFG.key;return h}
-async function rpc(fn,body){
-  const r=await fetch(CFG.url+'/rest/v1/rpc/'+fn,{method:'POST',headers:cloudHeaders(),body:JSON.stringify(body)});
-  if(!r.ok){const t=await r.text().catch(()=>'');const e=new Error(/wrong pin/i.test(t)?'pin':(t.slice(0,200)||'HTTP '+r.status));e.status=r.status;throw e}
+/* Online, everyone has their own Supabase account. The signed-in session is kept in this browser (an.auth), and the
+   online editor on the same site reads the same one, so signing in once is enough. */
+const AUTHKEY='an.auth';
+function authLoad(){try{const a=JSON.parse(store.get(AUTHKEY)||'null');return a&&a.refresh?a:null}catch(e){return null}}
+function authSave(a){AUTH=a;if(a)store.set(AUTHKEY,JSON.stringify({access:a.access,refresh:a.refresh,exp:a.exp,email:a.email||''}));else store.del(AUTHKEY)}
+function authFrom(j){return{access:j.access_token,refresh:j.refresh_token,exp:Date.now()+(+j.expires_in||3600)*1000,email:(j.user&&j.user.email)||(AUTH&&AUTH.email)||''}}
+async function authCall(path,body,method,tok){
+  const h={apikey:CFG.key,'Content-Type':'application/json'};if(tok)h.Authorization='Bearer '+tok;
+  const r=await fetch(CFG.url+'/auth/v1/'+path,{method:method||'POST',headers:h,body:body?JSON.stringify(body):undefined});
+  const t=await r.text();let j=null;try{j=t?JSON.parse(t):null}catch(e){}
+  if(!r.ok){const m=(j&&(j.error_description||j.msg||j.message))||t.slice(0,160)||'HTTP '+r.status;const e=new Error(/invalid login|invalid_grant|invalid credentials/i.test(m)?'login':m);e.status=r.status;throw e}
+  return j;
+}
+let refreshing=null;
+async function ensureToken(force){
+  if(!AUTH)throw new Error('pin');
+  if(!force&&AUTH.exp-Date.now()>60000)return AUTH.access;
+  if(!refreshing)refreshing=(async()=>{try{authSave(authFrom(await authCall('token?grant_type=refresh_token',{refresh_token:AUTH.refresh})))}catch(e){authSave(null);throw new Error('pin')}finally{refreshing=null}})();
+  await refreshing;return AUTH.access;
+}
+async function rpc(fn,body,retried){
+  const tok=await ensureToken();
+  const r=await fetch(CFG.url+'/rest/v1/rpc/'+fn,{method:'POST',headers:{apikey:CFG.key,Authorization:'Bearer '+tok,'Content-Type':'application/json'},body:JSON.stringify(body||{})});
+  if(!r.ok){
+    if(r.status===401&&!retried){await ensureToken(true);return rpc(fn,body,true)} /* the token ran out: get a new one and try once more */
+    const t=await r.text().catch(()=>'');
+    const e=new Error(r.status===401?'pin':r.status===403||/not allowed/i.test(t)?'forbidden':/could not find the function|PGRST202/i.test(t)?'sql':(t.slice(0,200)||'HTTP '+r.status));e.status=r.status;e.raw=t;throw e}
   const t=await r.text();return t?JSON.parse(t):null; /* some functions (saving money details) answer with nothing */
 }
 async function loadData(){
@@ -171,14 +221,14 @@ async function loadData(){
     const b=await fetch('/api/stats/jobs',{headers:h});
     DATA={events:(await a.json()).events||[],jobs:b.ok?((await b.json()).jobs||[]):[]};
   }else{
-    const j=await rpc('stats_read',{p_pin:PIN});DATA={events:j.events||[],jobs:j.jobs||[]};
+    const j=await rpc('stats_read');DATA={events:j.events||[],jobs:j.jobs||[]};
   }
   ALL=build(DATA.events);
 }
 async function saveJobs(list){
   DATA.jobs=list;
   if(MODE==='local'){const r=await fetch('/api/stats/jobs',{method:'POST',headers:{'X-Pin':encodeURIComponent(PIN),'Content-Type':'application/json'},body:JSON.stringify(list)});if(!r.ok)throw new Error('Could not save')}
-  else await rpc('jobs_save',{p_pin:PIN,p_jobs:list});
+  else await rpc('jobs_save',{p_jobs:list});
 }
 
 /* ---------- turning raw records into sessions ---------- */
@@ -373,7 +423,7 @@ function badge(st){
 }
 function renderMoney(){
   const el=$('#tab-money'),jobs=DATA.jobs.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
-  let h=`<div class="toolbar"><button class="primary" id="addJob">+ Add an event</button><label class="hint">Currency <input type="text" id="curIn" value="${esc(CUR)}" maxlength="4" style="width:64px"></label>
+  let h=`<div class="toolbar"><button class="primary own" id="addJob">+ Add an event</button><label class="hint">Currency <input type="text" id="curIn" value="${esc(CUR)}" maxlength="4" style="width:64px"></label>
     <span class="hint">Private event: package price + add-ons + prints beyond the included ones × print price. Session-based: sessions × price per session + extra prints × print price. Costs = prints × media cost + your other costs.</span></div>`;
   if(!jobs.length)h+='<div class="card"><p class="empty">No events yet. Add one, then type the same name as the booth\'s event name so prints are counted automatically.</p></div>';
   else{
@@ -383,7 +433,7 @@ function renderMoney(){
       return `<tr class="clk" data-job="${esc(j.id)}"><td>${esc(j.name)}<br><span class="hint">${isSessionJob(j)?'Session-based':'Private event'}${j.client?' · '+esc(j.client):''}</span></td><td>${esc(j.date||'–')}</td><td>${n}</td><td>${c.prints}</td><td>${money(c.rev)}</td><td>${money(c.cost)}</td><td class="${c.profit<0?'bad':''}">${money(c.profit)}</td><td>${money(c.paid)}</td><td class="${c.owed>0?'warn':''}">${money(c.owed)}</td><td>${badge(c.state)}</td></tr>`}).join('');
     h+=`<div class="card"><div class="scroll"><table><tr><th>Event</th><th>Date</th><th>Sessions</th><th>Prints</th><th>Income</th><th>Costs</th><th>Profit</th><th>Received</th><th>Owed</th><th>Status</th></tr>${rows}
       <tr><td><b>Total</b></td><td></td><td></td><td>${tot.prints}</td><td><b>${money(tot.rev)}</b></td><td><b>${money(tot.cost)}</b></td><td><b>${money(tot.profit)}</b></td><td>${money(tot.paid)}</td><td class="${tot.owed>0?'warn':''}"><b>${money(tot.owed)}</b></td><td></td></tr></table></div>
-      <p class="hint" style="margin:8px 0 0">Tap a row to edit it.</p></div>
+      <p class="hint own" style="margin:8px 0 0">Tap a row to edit it.</p></div>
       <div class="card" style="margin-top:12px"><h2>Monthly income and costs</h2><p class="sub">By event date, last 12 months with events</p>${monthChart(jobs)}</div>`;
   }
   el.innerHTML=h;
@@ -425,10 +475,10 @@ function renderSessions(){
   [...picked].forEach(id=>{if(!list.some(s=>s.id===id))picked.delete(id)});
   const stat={done:'Finished',abandon:'Left early',live:'In progress'};
   if(!list.length){el.innerHTML='<div class="card"><p class="empty">No sessions in this event and date range.</p></div>';return}
-  el.innerHTML=`<div class="card"><h2>Sessions</h2><p class="sub">${list.length} in this event and date range. Sessions you delete in the booth\'s gallery stay here until you remove them. Removing here never touches the booth\'s photos.</p>
-    <div class="toolbar"><button id="sesRm" ${picked.size?'':'disabled'}>Remove ${picked.size?picked.size+' selected':'selected'}</button><span id="sesMsg" class="hint"></span></div>
-    <div class="scroll"><table><tr><th><input type="checkbox" id="sesAll" aria-label="Select all" ${picked.size===list.length?'checked':''}></th><th>Time</th><th>Event</th><th>Mode</th><th>Design</th><th>Prints</th><th>Status</th><th></th></tr>${
-    list.slice(0,300).map(s=>`<tr><td><input type="checkbox" data-pick="${esc(s.id)}" ${picked.has(s.id)?'checked':''} aria-label="Select session"></td><td>${new Date(s.ts).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</td><td>${esc(s.event)}</td><td>${esc(modeName(s.mode))}</td><td>${esc(s.design||'–')}</td><td>${s.copies}</td><td>${stat[s.status]||s.status}</td><td><button class="link bad" data-rm1="${esc(s.id)}">Remove</button></td></tr>`).join('')}</table></div>${list.length>300?'<p class="hint">Showing the latest 300. Narrow the date range to see older ones.</p>':''}</div>`;
+  el.innerHTML=`<div class="card"><h2>Sessions</h2><p class="sub">${list.length} in this event and date range. Sessions you delete in the booth\'s gallery stay here until an owner removes them. Removing here never touches the booth\'s photos.</p>
+    <div class="toolbar own"><button id="sesRm" ${picked.size?'':'disabled'}>Remove ${picked.size?picked.size+' selected':'selected'}</button><span id="sesMsg" class="hint"></span></div>
+    <div class="scroll"><table><tr><th class="own"><input type="checkbox" id="sesAll" aria-label="Select all" ${picked.size===list.length?'checked':''}></th><th>Time</th><th>Event</th><th>Mode</th><th>Design</th><th>Prints</th><th>Status</th><th class="own"></th></tr>${
+    list.slice(0,300).map(s=>`<tr><td class="own"><input type="checkbox" data-pick="${esc(s.id)}" ${picked.has(s.id)?'checked':''} aria-label="Select session"></td><td>${new Date(s.ts).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</td><td>${esc(s.event)}</td><td>${esc(modeName(s.mode))}</td><td>${esc(s.design||'–')}</td><td>${s.copies}</td><td>${stat[s.status]||s.status}</td><td class="own"><button class="link bad" data-rm1="${esc(s.id)}">Remove</button></td></tr>`).join('')}</table></div>${list.length>300?'<p class="hint">Showing the latest 300. Narrow the date range to see older ones.</p>':''}</div>`;
 }
 async function removeSessions(ids){
   const sel=ALL.sessions.filter(s=>ids.includes(s.id));if(!sel.length)return;
@@ -436,27 +486,21 @@ async function removeSessions(ids){
   const rec=[...new Set(sel.flatMap(s=>s.ids))];
   try{
     if(MODE==='local'){const r=await fetch('/api/stats/remove',{method:'POST',headers:{'X-Pin':encodeURIComponent(PIN),'Content-Type':'application/json'},body:JSON.stringify({ids:rec})});if(r.status===401)throw new Error('pin');if(!r.ok)throw new Error('HTTP '+r.status)}
-    else await rpc('stats_remove',{p_pin:PIN,p_ids:rec});
+    else await rpc('stats_remove',{p_ids:rec});
     ids.forEach(i=>picked.delete(i));await loadData();render();
-  }catch(e){if(e.message==='pin')fail(e);else{const m=$('#sesMsg');if(m)m.textContent='Could not remove: '+e.message+(MODE==='cloud'?' (run the updated analytics.sql in Supabase)':'')}}
+  }catch(e){if(e.message==='pin')fail(e);else{const m=$('#sesMsg');if(m)m.textContent='Could not remove: '+niceErr(e)}}
 }
 
 /* ---------- online photos: what each event takes in Supabase storage, and deleting it ----------
-   Only for the online page. Deleting stored files needs Supabase's secret (service role) key. It is typed here when needed,
-   kept only in this open page (never saved) and wiped after each delete, and the booth never has it. */
+   Owners only, and only on the online page. Listing and deleting stored files uses the owner's own sign-in: the database
+   only allows it for owners (see analytics.sql), so no secret key is ever pasted anywhere and the booth never has one. */
 const ph={folders:null,busy:false,built:false};
 const phBucket=()=>($('#phBucket')?$('#phBucket').value:store.get('an.bucket')||'').trim();
-const phHdr=(key,extra)=>{const h=Object.assign({apikey:key},extra||{});if(/^eyJ/.test(key))h.Authorization='Bearer '+key;return h};
 const bytesTxt=n=>n>=1048576?(n/1048576).toFixed(n>=1e8?0:1)+' MB':Math.max(1,Math.round(n/1024))+' KB';
-function phKeyProblem(key){
-  if(!key)return 'Paste your Supabase secret key first (Project Settings → API Keys → secret key).';
-  if(/^sb_publishable_/.test(key))return 'That is the publishable key. Deleting needs the secret key.';
-  if(/^eyJ/.test(key)){try{const p=JSON.parse(atob(key.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));if(p.role!=='service_role')return 'That key is not the secret (service role) key.'}catch(e){return 'That key does not look right.'}}
-  return '';
-}
-async function phApi(key,path,opt){
-  const r=await fetch(`${CFG.url}/storage/v1/object/${path}`,Object.assign({headers:phHdr(key,{'Content-Type':'application/json'})},opt||{}));
-  if(!r.ok){const t=await r.text().catch(()=>'');throw new Error(r.status===401||r.status===403?'Supabase refused that key.':/bucket not found/i.test(t)?'Bucket not found. Check its name.':(t.slice(0,160)||'HTTP '+r.status))}
+async function phApi(_key,path,opt){
+  const tok=await ensureToken();
+  const r=await fetch(`${CFG.url}/storage/v1/object/${path}`,Object.assign({headers:{apikey:CFG.key,Authorization:'Bearer '+tok,'Content-Type':'application/json'}},opt||{}));
+  if(!r.ok){const t=await r.text().catch(()=>'');throw new Error(r.status===401||r.status===403?'Only owners can do this. If you are one, run the updated analytics.sql in Supabase.':/bucket not found/i.test(t)?'Bucket not found. Check its name.':(t.slice(0,160)||'HTTP '+r.status))}
   return r.json();
 }
 async function phList(key,bucket,prefix){
@@ -470,9 +514,8 @@ async function phList(key,bucket,prefix){
 function phInit(){
   const el=$('#tab-photos'),tb=$('#tabPhotos');if(!el)return;tb.hidden=MODE==='local';if(ph.built||MODE==='local')return;ph.built=true;
   el.innerHTML=`<div class="card"><h2>Photos online</h2><p class="sub">Guests' photos, GIFs and videos stored in Supabase, one folder per event. Delete an event's photos when you no longer need them (for example to stay under the free storage limit). Guests' links to deleted photos stop working, and deleted files can't be recovered. The booth's own copies on the laptop are never touched.</p>
-    <div class="two"><label>Storage bucket<input type="text" id="phBucket" autocomplete="off" spellcheck="false" placeholder="le-petique" value="${esc(store.get('an.bucket')||'')}"></label>
-    <label>Supabase secret key (not saved)<input type="password" id="phKey" autocomplete="off" spellcheck="false" placeholder="sb_secret_…"></label></div>
-    <div class="toolbar"><button id="phScan" class="primary">Look at what is online</button><span id="phMsg" class="hint"></span></div></div>
+    <label>Storage bucket<input type="text" id="phBucket" autocomplete="off" spellcheck="false" placeholder="le-petique" value="${esc(store.get('an.bucket')||'')}"></label>
+    <div class="toolbar" style="margin-top:10px"><button id="phScan" class="primary">Look at what is online</button><span id="phMsg" class="hint"></span></div></div>
     <div id="phOut" style="margin-top:12px"></div>`;
 }
 function phDraw(){
@@ -485,8 +528,8 @@ function phDraw(){
     <div class="toolbar" style="margin-top:12px"><label class="hint">Delete everything older than <input type="number" id="phDays" min="1" max="3650" value="60" style="width:80px"> days</label><button id="phOld">Delete old photos…</button></div></div>`;
 }
 async function phScan(){
-  if(ph.busy)return;const key=$('#phKey').value.trim(),bucket=phBucket(),msg=$('#phMsg'),bad=phKeyProblem(key);
-  if(bad){msg.textContent=bad;return}if(!/^[\w.-]+$/.test(bucket)){msg.textContent='Enter the bucket name.';return}
+  if(ph.busy)return;const key='',bucket=phBucket(),msg=$('#phMsg');
+  if(!/^[\w.-]+$/.test(bucket)){msg.textContent='Enter the bucket name.';return}
   store.set('an.bucket',bucket);ph.busy=true;msg.textContent='Looking…';
   try{
     const top=await phList(key,bucket,''),folders=[];
@@ -500,8 +543,7 @@ async function phScan(){
   }catch(e){msg.textContent='Could not look: '+e.message}finally{ph.busy=false}
 }
 async function phDelete(paths,label){
-  if(ph.busy||!paths.length)return;const key=$('#phKey').value.trim(),bucket=phBucket(),msg=$('#phMsg'),bad=phKeyProblem(key);
-  if(bad){msg.textContent=bad;return}
+  if(ph.busy||!paths.length)return;const key='',bucket=phBucket(),msg=$('#phMsg');
   const size=ph.folders.flatMap(f=>f.files).filter(f=>paths.includes(f.path)).reduce((t,f)=>t+f.size,0);
   if(!confirm(`Delete ${paths.length} file${paths.length===1?'':'s'} (${bytesTxt(size)}) ${label} from Supabase?\n\nGuests' links to them stop working. This can't be undone.`))return;
   ph.busy=true;let done=0;
@@ -510,10 +552,10 @@ async function phDelete(paths,label){
       msg.textContent=`Deleting… ${done} of ${paths.length}`;
       const r=await phApi(key,encodeURIComponent(bucket),{method:'DELETE',body:JSON.stringify({prefixes:paths.slice(i,i+100)})});done+=Array.isArray(r)?r.length:0;
     }
-    $('#phKey').value='';ph.busy=false;await phScanAfter(`Deleted ${done} file${done===1?'':'s'}. Paste the key again to look again.`);
+    ph.busy=false;await phScanAfter(`Deleted ${done} file${done===1?'':'s'}. Look again to refresh the list.`);
   }catch(e){msg.textContent=`Stopped after ${done}: ${e.message}`;ph.busy=false}
 }
-async function phScanAfter(text){ /* the key was wiped after the delete: forget the old table (it no longer matches) */
+async function phScanAfter(text){ /* forget the old table: it no longer matches what is online */
   ph.folders=null;const out=$('#phOut');if(out)out.innerHTML='';$('#phMsg').textContent=text;
 }
 
@@ -604,7 +646,34 @@ document.addEventListener('pointerleave',()=>{tip.style.display='none'});
 /* ---------- wiring ---------- */
 function showTab(t){
   tab=t;$$('nav.tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===t));
-  ['over','money','cmp','ses','photos'].forEach(k=>$('#tab-'+k).hidden=k!==t);
+  ['over','money','cmp','ses','photos','people'].forEach(k=>$('#tab-'+k).hidden=k!==t);
+  if(t==='people')renderPeople();
+}
+
+/* ---------- people (owners only, online): who can sign in, and as what ---------- */
+function niceErr(e){
+  const m=e.message||'';
+  if(m==='forbidden')return 'Only owners can do that.';
+  if(m==='sql')return 'Run the updated analytics.sql in Supabase first.';
+  if(/no such user/i.test(m+(e.raw||'')))return 'There is no account with that email. Create it in Supabase first (Authentication → Users → Add user).';
+  if(/last owner/i.test(m+(e.raw||'')))return 'There must always be at least one owner.';
+  return m||'Something went wrong.';
+}
+async function renderPeople(){
+  const el=$('#tab-people');if(!el||MODE==='local'||!isOwner())return;
+  let list;try{list=await rpc('staff_list')}catch(e){el.innerHTML=`<div class="card"><p class="err">Could not load people: ${esc(niceErr(e))}</p></div>`;return}
+  const me=AUTH&&AUTH.email;
+  el.innerHTML=`<div class="card"><h2>People</h2><p class="sub">Owners can do everything. Managers can look at stats and money, download CSV files and use the design editor, but can't change money, remove anything or add people.</p>
+    <div class="scroll"><table><tr><th>Email</th><th>Role</th><th></th></tr>${list.map(p=>`<tr><td>${esc(p.email)}${p.email===me?' <span class="hint">(you)</span>':''}</td><td><select data-prole="${esc(p.email)}" aria-label="Role for ${esc(p.email)}"><option value="owner" ${p.role==='owner'?'selected':''}>Owner</option><option value="manager" ${p.role==='manager'?'selected':''}>Manager</option></select></td><td><button class="link bad" data-prm="${esc(p.user_id)}" data-pmail="${esc(p.email)}">Remove access</button></td></tr>`).join('')}</table></div>
+    <h2 style="margin-top:18px">Add someone</h2>
+    <p class="sub">Create their account first in Supabase (Authentication → Users → Add user or Invite user), then give it a role here.</p>
+    <div class="toolbar"><input type="email" id="pEmail" placeholder="their email" autocapitalize="off" spellcheck="false" style="min-width:220px"><select id="pRole" aria-label="Role"><option value="manager">Manager</option><option value="owner">Owner</option></select><button class="primary" id="pAdd">Give access</button></div>
+    <p class="hint" id="pMsg" role="status"></p></div>`;
+}
+async function peopleDo(fn,body,okText){
+  const m=$('#pMsg');if(m)m.textContent='Saving…';
+  try{await rpc(fn,body);await renderPeople();const m2=$('#pMsg');if(m2)m2.textContent=okText||''}
+  catch(e){if(e.message==='pin')return fail(e);await renderPeople();const m2=$('#pMsg');if(m2)m2.textContent=niceErr(e)}
 }
 $$('nav.tabs button').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
 ['fEvent','fRange','fFrom','fTo'].forEach(id=>$('#'+id).addEventListener('change',render));
@@ -622,50 +691,129 @@ document.addEventListener('click',e=>{
   else if(t.dataset&&t.dataset.rm1)removeSessions([t.dataset.rm1]);
   else if(t.id==='sesAll'){const l=filtered().sessions;if(t.checked)l.forEach(s=>picked.add(s.id));else picked.clear();renderSessions()}
   else if(t.dataset&&t.dataset.pick!=null){if(t.checked)picked.add(t.dataset.pick);else picked.delete(t.dataset.pick);renderSessions()}
-  else if(t.id==='addJob')openJob();
-  else if(t.closest&&t.closest('tr[data-job]'))openJob(t.closest('tr[data-job]').dataset.job);
+  else if(t.id==='pAdd'){const em=($('#pEmail').value||'').trim();if(!em){$('#pMsg').textContent='Type their email first.';return}peopleDo('staff_set',{p_email:em,p_role:$('#pRole').value},'Access given to '+em+'.')}
+  else if(t.dataset&&t.dataset.prm){if(confirm(`Remove ${t.dataset.pmail||'this person'}'s access? They can no longer sign in to the analytics or the editor.`))peopleDo('staff_remove',{p_user:t.dataset.prm},'Access removed.')}
+  else if(t.id==='addJob'){if(isOwner())openJob()}
+  else if(t.closest&&t.closest('tr[data-job]')){if(isOwner())openJob(t.closest('tr[data-job]').dataset.job)}
   else if(t.id==='expRec')exportRecords();else if(t.id==='expSum')exportSummary();
 });
 document.addEventListener('input',e=>{if(e.target.id==='curIn'){CUR=e.target.value;store.set('an.cur',CUR);renderOver();renderCmp()}});
+document.addEventListener('change',e=>{const s=e.target;if(s.dataset&&s.dataset.prole)peopleDo('staff_set',{p_email:s.dataset.prole,p_role:s.value},'Role changed.')});
 
 function fail(e){
-  if(e.message==='pin'){sess.del('an.pin');PIN='';showLogin('That PIN is not right.')}
-  else $('#stamp').textContent='Could not load: '+e.message;
+  if(e.message==='pin'){sess.del('an.pin');PIN='';showLogin(MODE==='local'?'That PIN is not right.':'Please sign in again.')}
+  else if(e.message==='noaccess')showLogin('This account has not been given access yet. Ask an owner to add you under People.');
+  else $('#stamp').textContent='Could not load: '+niceErr(e);
 }
-function showLogin(msg){
-  clearInterval(timer);$('#appView').hidden=true;$('#loginView').hidden=false;
-  $('#cloudFields').hidden=MODE==='local';$('#lnkDesign').hidden=MODE==='local';$('#tabPhotos').hidden=MODE==='local'; /* the editor is hosted next to this page, not served by the booth laptop */
-  $('#loginHint').textContent=MODE==='local'?'Enter the staff PIN or password from the booth settings.':'Enter your Supabase details once, then the PIN you set in the analytics SQL.';
+const cfgOk=()=>!!(CFG.url&&CFG.key);
+function showLogin(msg,showCfg){
+  clearInterval(timer);$('#appView').hidden=true;$('#pwView').hidden=true;$('#loginView').hidden=false;
+  const cloud=MODE==='cloud';
+  $('#cloudFields').hidden=!cloud;$('#pinField').hidden=cloud;$('#forgotRow').hidden=!cloud;
+  $('#cfgFields').hidden=cloud&&cfgOk()&&!showCfg; /* the project details are remembered: only asked the first time */
+  $('#lnkDesign').hidden=!cloud;
+  $('#loginHint').textContent=cloud?'Sign in with your own email and password. Ask an owner if you don\'t have an account.':'Enter the staff PIN or password from the booth settings.';
   $('#cUrl').value=CFG.url||'';$('#cKey').value=CFG.key||'';
-  $('#loginErr').textContent=msg||'';$('#pin').focus();
+  $('#loginErr').textContent=msg||'';
+  (cloud?(cfgOk()&&!showCfg?$('#cMail'):$('#cUrl')):$('#pin')).focus();
+}
+function applyRole(me){
+  document.body.classList.toggle('mgr',!isOwner());
+  const cloud=MODE==='cloud';
+  $('#who').hidden=!cloud;$('#btnOut').hidden=!cloud;
+  if(cloud)$('#who').textContent=(me&&me.email||'')+' · '+(isOwner()?'Owner':'Manager');
+  $('#tabPhotos').hidden=!cloud;$('#tabPeople').hidden=!cloud;
+  if(!isOwner()&&(tab==='photos'||tab==='people'))showTab('over');
 }
 async function enter(){
+  if(MODE==='cloud'){
+    const me=await rpc('staff_me');if(!me){authSave(null);throw new Error('noaccess')}
+    ROLE=me.role;if(AUTH)AUTH.email=me.email;applyRole(me);
+  }else{ROLE='owner';applyRole(null)}
   await loadData();
-  $('#loginView').hidden=true;$('#appView').hidden=false;render();
+  $('#loginView').hidden=true;$('#pwView').hidden=true;$('#appView').hidden=false;render();
   clearInterval(timer);timer=setInterval(()=>{if(!document.hidden&&!$('#jobDlg').open)loadData().then(render).catch(fail)},30000);
+}
+function readCfg(){
+  let u=$('#cUrl').value.trim().replace(/\/+$/,'').replace(/\/(rest|storage|auth)\/v1.*$/,'');if(/^[a-z0-9]{12,40}$/i.test(u))u='https://'+u+'.supabase.co';
+  const k=$('#cKey').value.trim();
+  if(!/^https:\/\/[^\s/]+$/i.test(u)||!k)return false;
+  CFG={url:u,key:k};store.set('an.cfg',JSON.stringify(CFG));return true;
 }
 $('#loginForm').onsubmit=async e=>{
   e.preventDefault();$('#loginErr').textContent='';
   if(MODE==='cloud'){
-    let u=$('#cUrl').value.trim().replace(/\/+$/,'').replace(/\/(rest|storage)\/v1.*$/,'');if(/^[a-z0-9]{12,40}$/i.test(u))u='https://'+u+'.supabase.co';
-    if(!/^https:\/\/[^\s/]+$/i.test(u)||!$('#cKey').value.trim()){$('#loginErr').textContent='Enter the project URL and publishable key.';return}
-    CFG={url:u,key:$('#cKey').value.trim()};store.set('an.cfg',JSON.stringify(CFG));
+    if(!$('#cfgFields').hidden&&!readCfg()){$('#loginErr').textContent='Enter the project URL and publishable key.';return}
+    const mail=$('#cMail').value.trim(),pass=$('#cPass').value;
+    if(!mail||!pass){$('#loginErr').textContent='Enter your email and password.';return}
+    try{authSave(authFrom(await authCall('token?grant_type=password',{email:mail,password:pass})));$('#cPass').value='';await enter()}
+    catch(er){
+      if(er.message==='login')$('#loginErr').textContent='Wrong email or password.';
+      else if(er.message==='noaccess')fail(er);
+      else if(er.message==='sql')$('#loginErr').textContent='The analytics SQL has not been updated in this Supabase project yet (see the README).';
+      else{$('#loginErr').textContent='Could not connect: '+niceErr(er);$('#cfgFields').hidden=false}
+    }
+    return;
   }
   PIN=$('#pin').value;
   try{await enter();sess.set('an.pin',PIN)}
-  catch(er){
-    if(er.message==='pin')$('#loginErr').textContent='That PIN is not right.';
-    else if(MODE==='cloud'&&/stats_read|function|PGRST202|404/i.test(er.message))$('#loginErr').textContent='The analytics SQL has not been run in this Supabase project yet (see the README).';
-    else $('#loginErr').textContent='Could not connect: '+er.message;
-  }
+  catch(er){if(er.message==='pin')$('#loginErr').textContent='That PIN is not right.';else $('#loginErr').textContent='Could not connect: '+niceErr(er)}
 };
+$('#forgot').onclick=async()=>{
+  const mail=$('#cMail').value.trim(),err=$('#loginErr');
+  if(!$('#cfgFields').hidden&&!readCfg()){err.textContent='Enter the project URL and publishable key first.';return}
+  if(!mail){err.textContent='Type your email above first, then tap this again.';return}
+  try{await authCall('recover?redirect_to='+encodeURIComponent(location.origin+location.pathname),{email:mail});err.textContent='If that email has an account, a reset link is on its way.'}
+  catch(er){err.textContent='Could not send it: '+niceErr(er)}
+};
+$('#btnOut').onclick=()=>{authSave(null);clearInterval(timer);document.body.classList.remove('mgr');DATA={events:[],jobs:[]};ALL=null;showLogin('Signed out.')};
+
+/* an invite or password-reset link from Supabase opens this page with the sign-in tokens in the address */
+function linkTokens(){
+  const p=new URLSearchParams(location.hash.slice(1)),t=p.get('access_token');
+  if(!t||!/^(invite|recovery|signup|magiclink)$/.test(p.get('type')||''))return null;
+  return{access:t,refresh:p.get('refresh_token')||'',exp:Date.now()+(+p.get('expires_in')||3600)*1000,type:p.get('type')};
+}
+function projectFromToken(t){try{const iss=JSON.parse(atob(t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))).iss||'';return iss.replace(/\/auth\/v1\/?$/,'')}catch(e){return ''}}
+function showSetPassword(lt){
+  $('#loginView').hidden=true;$('#appView').hidden=true;$('#pwView').hidden=false;
+  if(!CFG.url){const u=projectFromToken(lt.access);if(u)CFG.url=u}
+  $('#pwHint').textContent=(lt.type==='recovery'?'Choose a new password for your account.':'Welcome. Choose a password for your account.')+' Use at least 8 characters.';
+  if(!CFG.key){ /* the publishable key is not in the link: it is asked for once */
+    if(!$('#pwKeyRow')){const d=document.createElement('div');d.id='pwKeyRow';d.innerHTML='<label for="pwKey">Publishable key (from the owner)</label><input id="pwKey" type="text" autocomplete="off" spellcheck="false" placeholder="sb_publishable_…">';$('#pwForm').insertBefore(d,$('#pw1').previousElementSibling)}
+  }
+  $('#pwForm').onsubmit=async e=>{
+    e.preventDefault();const err=$('#pwErr');err.textContent='';
+    const a=$('#pw1').value,b=$('#pw2').value;
+    if(a.length<8){err.textContent='Use at least 8 characters.';return}
+    if(a!==b){err.textContent='The two passwords are not the same.';return}
+    if(!CFG.key){const k=($('#pwKey')||{}).value;if(!k||!k.trim()){err.textContent='Enter the publishable key.';return}CFG.key=k.trim()}
+    try{
+      const u=await authCall('user',{password:a},'PUT',lt.access);
+      CFG={url:CFG.url,key:CFG.key};store.set('an.cfg',JSON.stringify(CFG));
+      authSave({access:lt.access,refresh:lt.refresh,exp:lt.exp,email:(u&&u.email)||''});
+      history.replaceState(null,'',location.pathname+location.search); /* the tokens must not stay in the address bar */
+      $('#pw1').value=$('#pw2').value='';
+      await enter();
+    }catch(er){
+      if(er.message==='noaccess'){fail(er)}
+      else err.textContent='Could not save the password: '+niceErr(er);
+    }
+  };
+}
 
 (async function start(){
   let local=false;
   if(/^https?:$/.test(location.protocol)){try{const r=await fetch('/api/info',{cache:'no-store'});if(r.ok){const j=await r.json();local=!!(j&&j.app==='lepetique')}}catch(e){}}
   MODE=local?'local':'cloud';
+  if(MODE==='cloud'){
+    const lt=linkTokens();if(lt){showSetPassword(lt);return}
+    AUTH=authLoad();
+    if(AUTH&&cfgOk()){try{await enter();return}catch(e){if(e.message==='noaccess'){fail(e);return}}}
+    showLogin();return;
+  }
   const saved=sess.get('an.pin');
-  if(saved!=null&&(MODE==='local'||CFG.url)){PIN=saved;try{await enter();return}catch(e){}}
+  if(saved!=null){PIN=saved;try{await enter();return}catch(e){}}
   showLogin();
 })();
 })();
