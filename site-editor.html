@@ -75,10 +75,10 @@ section h3{margin:0;font-size:16px;display:flex;justify-content:space-between;al
 </div>
 <div id="app" hidden>
   <div class="bar"><h1>Website editor</h1><span class="hint" id="who"></span>
-    <button class="pvtab" id="pvTab">Preview</button><a href="index.html" target="_blank" rel="noopener"><button>Open site</button></a><a href="analytics.html"><button>Analytics</button></a>
+    <button class="pvtab" id="pvTab">Preview</button><button id="pvReload" title="Fetch the newest version of the website into the preview">↻ Reload preview</button><a id="openSite" href="index.html" target="_blank" rel="noopener"><button>Open site</button></a><a href="analytics.html"><button>Analytics</button></a>
     <button class="go" id="save" disabled>Save</button></div>
   <div class="tabs" id="tabs" role="tablist"></div>
-  <div class="body" id="body"><div id="form"></div><iframe id="pv" title="Live preview" src="index.html?preview"></iframe></div>
+  <div class="body" id="body"><div id="form"></div><iframe id="pv" title="Live preview"></iframe></div>
 </div>
 <div id="toast" role="status"></div>
 <script src="config.js"></script>
@@ -172,6 +172,11 @@ async function enter(){
   }catch(e){showLogin(niceErr(e))}}
 
 /* ---------- preview and saving ---------- */
+/* the preview is the real site page. A new address each time (?v=) makes the browser fetch the newest copy instead of one it kept (GitHub keeps pages for about 10 minutes). */
+function loadPreview(){pvReady=false;$('#pv').src='index.html?preview&v='+Date.now()}
+loadPreview();
+$('#pvReload').addEventListener('click',function(){loadPreview();toast('Preview reloaded')});
+$('#openSite').addEventListener('click',function(){this.href='index.html?v='+Date.now()});
 function push(){var f=$('#pv');if(pvReady&&f.contentWindow)f.contentWindow.postMessage({lpSite:D},'*')}
 addEventListener('message',function(e){if(e.data&&e.data.lpSiteReady){pvReady=true;push()}});
 function dirty(){var d=JSON.stringify(D)!==SAVED;$('#save').disabled=!d;$('#save').textContent=d?'Save changes':'Saved'}
