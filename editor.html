@@ -100,6 +100,8 @@ body.designing #app{pointer-events:none;transform:scale(var(--dzk,.7));transform
 .screen.free #thumbs{min-height:0}
 body:not(.designing) .mv-hide{display:none!important}
 body.designing .mv-hide{opacity:.28}
+@keyframes dzflash{0%,60%{box-shadow:0 0 0 3px #38d9f5}100%{box-shadow:0 0 0 3px transparent}}
+.dzbody section.dzflash{animation:dzflash 1.3s ease-out}
 body.designing [data-mv],body.designing .deco>*{pointer-events:auto;cursor:grab;touch-action:none}
 body.designing [data-mv]:hover,body.designing .deco>*:hover{outline:2px dashed rgba(127,127,127,.8);outline-offset:6px}
 body.designing .mv-sel{outline:2px solid #38d9f5!important;outline-offset:6px}
@@ -189,7 +191,7 @@ body.capturing .controls,body.capturing #readyBack{visibility:hidden}
  .qrs.two .qr{width:min(140px,var(--qr))}
 }
 @media (max-width:600px){.side{grid-template-columns:1fr}.qrs{justify-content:center}.qr,.qrs.two .qr{width:46vw;max-width:170px}}
-.row2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.row2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-items:end} /* end: when one caption wraps to two lines, both boxes still sit on the same line */
 .srv{margin:0;padding:12px 14px;border-radius:12px;font-size:15px;line-height:1.45;background:var(--panel);border:1px solid var(--line);overflow-wrap:anywhere;-webkit-user-select:text;user-select:text}
 .srv.on{border-color:color-mix(in srgb,var(--accent) 60%,var(--line))}
 .srv b{color:var(--ink)}
@@ -199,10 +201,16 @@ body.capturing .controls,body.capturing #readyBack{visibility:hidden}
 .prc{display:flex;flex-direction:column;gap:10px;padding:12px 14px;border-radius:12px;background:var(--panel);border:1px solid var(--line)}
 .prc .prh{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
 .prc .prh b{overflow-wrap:anywhere}
-.szs{display:flex;flex-wrap:wrap;gap:4px 16px;margin-top:6px}
+.szs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 16px;margin-top:8px} /* two even columns, so the boxes line up */
+.slr .slrow{display:flex;align-items:center;gap:8px}
+.slr input[type=range]{flex:1;width:auto;min-height:0;accent-color:var(--accent)}
+.slr output{min-width:5.2em;text-align:right;color:var(--ink);font-variant-numeric:tabular-nums}
+.slr .nudge{width:42px;min-height:42px;padding:0;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-size:20px;line-height:1}
 .chip2{display:inline-block;padding:3px 10px;border-radius:999px;font-size:13px;border:1px solid var(--line);color:var(--mute);white-space:nowrap}
 .chip2.ok{color:#7fe0a0;border-color:#3d7f58}.chip2.warn{color:#ffcf6b;border-color:#8a6d25}.chip2.bad{color:#ff9b9b;border-color:#8a3a3a}
-.drv{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:10px 12px;border-radius:12px;background:var(--panel);border:1px solid var(--line)}
+.drv{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:12px 14px;border-radius:12px;background:var(--panel);border:1px solid var(--line)}
+.drvt{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1 1 240px}
+.drvh{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.drvh b{overflow-wrap:anywhere}
 .drv button{padding:9px 16px;border-radius:12px;border:1px solid var(--line);min-height:44px;background:var(--panel)}
 .testqr{display:flex;gap:14px;align-items:center}
 .testqr .qr{flex:none;width:130px;padding:6px}
@@ -237,7 +245,7 @@ body.capturing .controls,body.capturing #readyBack{visibility:hidden}
 fieldset{border:1px solid var(--line);border-radius:18px;padding:14px 18px 18px;margin:0;display:flex;flex-direction:column;gap:12px}
 legend{padding:0 6px;font-weight:600;color:var(--accent)}
 label{display:flex;flex-direction:column;gap:6px;font-size:15px;color:var(--mute)}
-label.chk{flex-direction:row;align-items:center;gap:12px;color:var(--ink);font-size:16px}
+label.chk{flex-direction:row;align-items:flex-start;gap:12px;color:var(--ink);font-size:16px;line-height:24px} /* the box sits beside the first line, even when the text wraps */
 input[type=text],input[type=number],select{font:inherit;font-size:16px;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;min-height:46px;width:100%}
 input[type=color]{width:100%;height:46px;border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:4px}
 input[type=checkbox]{width:24px;height:24px;accent-color:var(--accent);flex:none}
@@ -368,6 +376,8 @@ textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);borde
  #printImg{display:block;object-fit:cover}
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.meter{height:12px;border-radius:6px;background:var(--panel);border:1px solid var(--line);overflow:hidden}
+.meter i{display:block;height:100%;width:0;background:var(--accent);transition:width .08s}
 </style>
 <style id="pageSize"></style>
 </head>
@@ -538,7 +548,7 @@ textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);borde
         <p class="hint">Shows the booth's camera screen and runs the real countdown, flash and sound, without taking a photo. Settings reopen afterwards.</p>
       </fieldset>
       <fieldset data-show="photo"><legend>Photo extras</legend>
-        <p class="hint">For photo sessions (strip, grid, single). Guests get them alongside the print, on screen and through the QR code.</p>
+        <p class="hint">For photo strip sessions. Guests get them alongside the print, on screen and through the QR code.</p>
         <label class="chk"><input data-k="livePhoto" type="checkbox"> Live photo: capture the moment around each shot, so the whole print moves</label>
         <label data-show="livePhoto">Live photo length (seconds, half before and half after each shot)<input data-k="liveSec" type="number" min="0.6" max="4" step="0.2"></label>
         <label class="chk"><input data-k="photoGif" type="checkbox"> Also make a GIF that flips through the session's photos</label>
@@ -558,12 +568,28 @@ textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);borde
         <div class="row2"><label>Text while scribbling (the time left is added)<input data-k="scribbleText" type="text"></label>
           <label>Text before the final photo<input data-k="scribbleFinalText" type="text"></label></div>
       </fieldset>
+      <fieldset data-show="video"><legend>Video message</legend>
+        <p class="hint">Guests record a short video with sound, for example a message for the couple. It is made on a phone-shaped (9:16) screen with the event's video design on top, ready for Instagram Stories. It isn't printed; guests get it by QR code as an MP4. The first time, the booth window asks to use the microphone: choose Allow.</p>
+        <div class="row2"><label>Length (seconds)<input data-k="videoSec" type="number" min="5" max="60"></label>
+          <label>Microphone<select data-k="videoMic" id="micSel"><option value="">Default microphone</option></select></label></div>
+        <div class="btnrow"><button id="micTest">Test the microphone</button></div>
+        <div class="meter" id="micMeter" hidden><i></i></div>
+        <p class="hint" id="micMsg"></p>
+        <label class="chk"><input data-k="videoEarly" type="checkbox"> Guests can tap the screen (or press the remote) to stop recording early</label>
+        <label>Text before recording<input data-k="videoReady" type="text"></label>
+        <label>Text while recording (the time left is added)<input data-k="videoText" type="text"></label>
+        <p class="hint">The look of the video (frame, logo, texts, QR code) is the <b>Video message</b> tab in Settings → Event → Edit print templates.</p>
+      </fieldset>
     </section>
 
     <section class="spane" data-pane="printing" role="tabpanel" hidden>
       <fieldset><legend>Printing</legend>
-        <label class="chk"><input type="checkbox" id="autoPrintChk"> Print automatically when a session is done</label>
-        <p class="hint" id="autoPrintHint">Photo strip, grid, single and scribble photos print by themselves as the results screen opens. GIFs and boomerangs aren't printed.</p>
+        <div class="subgrp" style="border-top:0;padding-top:0">
+          <b>When a session is done</b>
+          <label class="chk"><input type="checkbox" id="printBtnChk"> Show a Print button on the results screen</label>
+          <label class="chk"><input type="checkbox" id="autoPrintChk"> Print automatically as the results screen opens</label>
+          <p class="hint" id="autoPrintHint">Photo strips and scribble photos can print. GIFs, boomerangs and videos aren't printed. The look of the Print button (its label) is set in Customise booth screens → Results.</p>
+        </div>
         <label>How to print<select data-k="printMode"><option value="auto">Automatic (straight to the printer when available)</option><option value="direct">Straight to the printer, no dialog</option><option value="dialog">Show the print dialog</option></select></label>
         <div id="prDirect" class="subgrp">
           <p class="srv" id="prStatus">Looking for printers…</p>
@@ -2614,11 +2640,12 @@ const LP_WEB=!!window.LP_WEB,LS_KEY=LP_WEB?'petique.web.settings':'petique.setti
 /* ---------- settings ---------- */
 const DEF={eventName:'Le Petique',eventSub:'Smile, darling',showDate:true,frameBg:'#fbf5ef',frameInk:'#1d1620',accent:'#ff5a7a',font:'Fraunces',
   countdown:3,stripShots:4,gifFrames:4,boomSec:1.6,mirror:true,mirrorOut:false,sound:true,cameraId:'',filter:'none',customFonts:[],customFilters:[],
-  modes:{strip:true,grid:true,single:true,gif:true,boom:true,scribble:false},
+  modes:{strip:true,gif:true,boom:true,scribble:false,video:false},
+  videoSec:15,videoMic:'',videoEarly:true,videoReady:'Get ready to say something!',videoText:'Recording',
   scribbleSec:30,scribbleFinalSec:5,scribbleSpeed:1,scribbleQuality:'standard',scribbleFlip:true,scribbleEarly:true,scribbleReady:'Get ready to scribble on the glass!',scribbleText:'Scribble!',scribbleFinalText:'Now strike a pose for your photo!',dupStrip:true,autoDownload:false,idle:45,pin:'1234',lockType:'pin',password:'',boothName:'Booth 1',
   printMode:'auto',printCopies:1,print:{printer:'',stripPrinter:'',papers:{}},camRes:'1080',camRot:0,eventFolders:false,camAlwaysOn:false,cameraLabel:'',photoGif:false,livePhoto:false,liveSec:1.6,gifFrameSec:.7,delivery:'local',qrText:'Scan to get your photo',qrHost:'auto',qrHostCustom:'',wifiName:'',wifiPass:'',wifiSec:'WPA',
   cloudViewer:'',cloudUrl:'',cloudKey:'',cloudBucket:'photobooth',cloudFolder:'',tpl:null,tplPreset:'classic'};
-const RANGE={printCopies:[1,10],gifFrameSec:[.2,3],liveSec:[.6,4],scribbleSec:[5,180],scribbleFinalSec:[1,30],countdown:[1,10],stripShots:[3,4],gifFrames:[2,10],boomSec:[1,3],idle:[15,600]};
+const RANGE={printCopies:[1,10],videoSec:[5,60],gifFrameSec:[.2,3],liveSec:[.6,4],scribbleSec:[5,180],scribbleFinalSec:[1,30],countdown:[1,10],stripShots:[3,4],gifFrames:[2,10],boomSec:[1,3],idle:[15,600]};
 const DEF_UI={
   deco:{start:[],pick:[],design:[],capture:[],share:[]},
   layout:{start:{free:false,items:{}},pick:{free:false,items:{}},design:{free:false,items:{}},capture:{free:false,items:{}},share:{free:false,items:{}}},
@@ -2634,6 +2661,7 @@ const isObj=v=>v&&typeof v==='object'&&!Array.isArray(v);
 function deepMerge(d,s){const o=JSON.parse(JSON.stringify(d));if(!isObj(s))return o;for(const k of Object.keys(s)){o[k]=isObj(d[k])&&isObj(s[k])?deepMerge(d[k],s[k]):s[k]}return o}
 function loadSettings(){let s={};try{s=JSON.parse(localStorage.getItem(LS_KEY)||'{}')||{}}catch(e){}
   if(s.qrOn===false&&!s.delivery)s.delivery='off';
+  dropGridSingle(s);if(s.events&&typeof s.events==='object')Object.values(s.events).forEach(e=>e&&dropGridSingle(e.data)); /* Grid and Single were removed */
   const o=Object.assign({},DEF,s);if(!s.scribV){o.scribbleSpeed=1;o.scribV=1} /* scribble videos default to real time */o.modes=Object.assign({},DEF.modes,s.modes||{});o.tpl=s.tpl&&typeof s.tpl==='object'?s.tpl:{};o.print=Object.assign({printer:'',stripPrinter:'',papers:{}},s.print||{});o.print.papers=o.print.papers||{};o.ui=deepMerge(DEF_UI,s.ui);
   if(!s.keysV){o.ui.pick.showKeys=false;o.keysV=1} /* keyboard numbers on the mode cards are off unless you turn them on */
   o.pin=String(o.pin==null?'':o.pin);
@@ -2659,15 +2687,28 @@ try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}ca
 const sv=p=>`<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round">${p}</svg>`;
 const MODES={
   strip:{t:'Photo strip',d:()=>photoDesc('strip'),icon:sv('<rect x="20" y="3" width="24" height="58" rx="3"/><rect x="24" y="8" width="16" height="10"/><rect x="24" y="21" width="16" height="10"/><rect x="24" y="34" width="16" height="10"/><path d="M26 51h12"/>')},
-  grid:{t:'Grid',d:()=>photoDesc('grid'),icon:sv('<rect x="5" y="10" width="54" height="44" rx="3"/><rect x="10" y="15" width="20" height="14"/><rect x="34" y="15" width="20" height="14"/><rect x="10" y="33" width="20" height="14"/><rect x="34" y="33" width="20" height="14"/>')},
-  single:{t:'Single',d:()=>photoDesc('single'),icon:sv('<rect x="5" y="10" width="54" height="44" rx="3"/><circle cx="22" cy="24" r="5"/><path d="M9 48l15-14 10 9 8-6 13 11"/>')},
   gif:{t:'GIF',d:()=>`${S.gifFrames} poses · animated`,icon:sv('<rect x="5" y="10" width="54" height="44" rx="3"/><path d="M26 22l16 10-16 10z" fill="currentColor"/>')},
   boom:{t:'Boomerang',d:()=>'Back-and-forth loop',icon:sv('<path d="M10 32c0-7 5-12 11-12 10 0 12 24 22 24 6 0 11-5 11-12s-5-12-11-12c-10 0-12 24-22 24-6 0-11-5-11-12z"/>')},
-  scribble:{t:'Scribble',d:()=>`${Math.round(num('scribbleSec'))} s scribble video + photo`,icon:sv('<rect x="5" y="8" width="54" height="40" rx="3"/><path d="M13 38c5-12 9-14 11-8s5 6 9-4 8-9 9-2 4 7 9 0"/><path d="M40 52l6-6 6 6-6 6z" fill="currentColor"/>')}};
-/* ORDER: the classic modes. MODE_ORDER adds Scribble, which has its own print designs laid out like Single (TM). */
-const ORDER=['strip','grid','single','gif','boom'],MODE_ORDER=ORDER.concat('scribble');
-const TM=m=>m==='scribble'?'single':m;
-const LAYOUT={strip:{w:600,h:1800},grid:{w:1800,h:1200},single:{w:1800,h:1200},gif:{w:800,h:600},boom:{w:640,h:480}};
+  scribble:{t:'Scribble',d:()=>`${Math.round(num('scribbleSec'))} s scribble video + photo`,icon:sv('<rect x="5" y="8" width="54" height="40" rx="3"/><path d="M13 38c5-12 9-14 11-8s5 6 9-4 8-9 9-2 4 7 9 0"/><path d="M40 52l6-6 6 6-6 6z" fill="currentColor"/>')},
+  video:{t:'Video message',d:()=>`${Math.round(num('videoSec'))} s video with sound`,icon:sv('<rect x="5" y="14" width="40" height="36" rx="5"/><path d="M45 29l14-8v22l-14-8z" fill="currentColor"/><circle cx="16" cy="25" r="3" fill="currentColor"/>')}};
+/* Modes that have a PRINT design (a frame with the photos in it): the strip, and scribble, which has its own designs. The others
+   (GIF, boomerang, video) are full-frame designs. Grid and Single were removed; old saves are tidied by dropGridSingle(). */
+const MODE_ORDER=['strip','gif','boom','scribble','video'];
+const LAYOUT={strip:{w:600,h:1800},gif:{w:800,h:600},boom:{w:640,h:480},video:{w:1080,h:1920}}; /* video: the design is drawn on the 9:16 story frame */
+const VIDEO_CAM={w:1280,h:720}; /* what the camera shows while a video message is recorded (it sits in the middle of the story frame) */
+/* Grid and Single no longer exist. Scribble used the Single designs, so if it has none of its own it takes them over; then both are forgotten.
+   Works on settings, on a saved event's data and on designs arriving from the online editor. */
+function dropGridSingle(o){
+  if(!o||typeof o!=='object')return o;
+  const t=o.tpls;
+  if(t&&typeof t==='object'){
+    if(Array.isArray(t.single)&&t.single.length&&!(Array.isArray(t.scribble)&&t.scribble.length)){t.scribble=t.single;if(o.tplSel&&o.tplSel.single)o.tplSel.scribble=o.tplSel.single}
+    delete t.grid;delete t.single}
+  if(o.tpl&&typeof o.tpl==='object'){if(o.tpl.single&&!o.tpl.scribble)o.tpl.scribble=o.tpl.single;delete o.tpl.grid;delete o.tpl.single}
+  if(o.tplSel&&typeof o.tplSel==='object'){delete o.tplSel.grid;delete o.tplSel.single}
+  if(o.modes&&typeof o.modes==='object'){delete o.modes.grid;delete o.modes.single;
+    if(!['strip','gif','boom','scribble','video'].some(m=>o.modes[m]))o.modes.strip=true} /* never leave a booth with no mode */
+  return o}
 const FILTERS={none:{l:'Natural',css:'none'},bw:{l:'Mono',css:'grayscale(1) contrast(1.1)'},noir:{l:'Noir',css:'grayscale(1) contrast(1.45) brightness(.95)'},
   vintage:{l:'Vintage',css:'sepia(.5) contrast(.92) brightness(1.04) saturate(.9)'},warm:{l:'Golden',css:'sepia(.18) saturate(1.25) brightness(1.04)'},
   cool:{l:'Cool',css:'saturate(.92) hue-rotate(-10deg) brightness(1.03)'},vivid:{l:'Vivid',css:'saturate(1.45) contrast(1.1)'}};
@@ -2841,7 +2882,7 @@ const ICON={print:ic('<path d="M7 9V3h10v6M7 17H4v-7h16v7h-3M7 14h10v7H7z"/>'),s
 const dateStr=()=>new Date().toLocaleDateString(undefined,{month:'long',day:'numeric',year:'numeric'});
 const clampN=(v,[a,b])=>Math.min(b,Math.max(a,v));
 const num=k=>clampN(Number(S[k])||DEF[k],RANGE[k]);
-const shotCount=m=>PHOTO_MODES.includes(TM(m))?getTpl(m).photo.slots.length:m==='gif'?Math.round(num('gifFrames')):1;
+const shotCount=m=>PRINT_MODES.includes(m)?getTpl(m).photo.slots.length:m==='gif'?Math.round(num('gifFrames')):1;
 const photoDesc=m=>{const n=shotCount(m),T=getTpl(m);return `${n} photo${n===1?'':'s'} · ${sizeOf(T).l}`};
 const modeName=m=>(S.ui.pick.names[m]||'').trim()||MODES[m].t;
 const modeDesc=m=>(S.ui.pick.descs[m]||'').trim()||MODES[m].d();
@@ -2877,7 +2918,7 @@ function applyTheme(){
   a.style.setProperty('--tsize',+st.titleSize||11);a.style.setProperty('--tcolor',st.titleColor);a.style.setProperty('--sub',st.subColor);
   a.style.setProperty('--btn',st.btnColor||S.accent);a.style.setProperty('--btnink',st.btnInk||T.accentInk||'#fff');a.style.setProperty('--logo',(+st.logoSize||160)+'px');
   const te=(getTpl('strip').els||[]).find(e=>e.type==='text'&&/\{event\}/i.test(e.text)),h=$('#aName');
-  h.textContent=fillTokens(st.title)||'';h.hidden=!h.textContent;setFontStyle(h,st.titleFont||(te&&te.font)||S.font);
+  h.textContent=fillTokens(st.title)||'';h.hidden=!h.textContent;setFontStyle(h,st.titleFont||(FONTS.Slight&&FONTS.Slight.custom?'Slight':'')||(te&&te.font)||S.font); /* no font chosen: an uploaded font called Slight is the title font, else the print title's font */
   $('#aSub').textContent=fillTokens(st.sub);$('#aSub').hidden=!$('#aSub').textContent;
   $('#aDate').textContent=fillTokens(st.kicker);$('#aDate').hidden=!$('#aDate').textContent;
   const lg=$('#aLogo');lg.hidden=!(st.showLogo&&assets.logo);if(!lg.hidden)lg.src=assets.logo.src;
@@ -3107,12 +3148,12 @@ function grab(w,h,f,el){
 }
 
 /* ---------- templates ---------- */
-const PHOTO_MODES=['strip','grid','single'];
+const PHOTO_MODES=['strip'],PRINT_MODES=['strip','scribble']; /* PHOTO_MODES: a session of several photos (live photo and photo GIF extras); PRINT_MODES: modes with a printed design */
 const SIZES={'2x6':{w:600,h:1800,l:'2×6 strip',cap:250,mg:36,gp:18},'4x6p':{w:1200,h:1800,l:'4×6 portrait',cap:260,mg:50,gp:24},
   '4x6l':{w:1800,h:1200,l:'4×6 landscape',cap:170,mg:50,gp:24},'sq':{w:1500,h:1500,l:'5×5 square',cap:210,mg:50,gp:24},
   'sq6':{w:1800,h:1800,l:'6×6 square',cap:240,mg:56,gp:26},'5x7p':{w:1500,h:2100,l:'5×7 portrait',cap:280,mg:56,gp:26},'5x7l':{w:2100,h:1500,l:'5×7 landscape',cap:190,mg:56,gp:26},
   '6x8p':{w:1800,h:2400,l:'6×8 portrait',cap:300,mg:60,gp:28},'6x8l':{w:2400,h:1800,l:'6×8 landscape',cap:220,mg:60,gp:28}};
-const DEF_SIZE={strip:'2x6',grid:'4x6l',single:'4x6l'},DEF_ARR={strip:'stack4',grid:'grid22',single:'single'};
+const DEF_SIZE={strip:'2x6',scribble:'4x6l'},DEF_ARR={strip:'stack4',scribble:'single'};
 /* A template's design size: one of SIZES, or a custom width × height in inches ('custom', T.cw, T.ch). */
 function sizeOf(T){
   if(T&&T.size==='custom'){const cw=clampN(+T.cw||4,[1,12]),ch=clampN(+T.ch||6,[1,12]),f=Math.sqrt(cw*ch/24);
@@ -3162,7 +3203,7 @@ const PRESETS={
   bold:{l:'Bold',bg:'#ffd23f',ink:'#141414',accent:'#ff3f6c',font:'Bebas Neue',sub:'Montserrat Bold'},
   minimal:{l:'Minimal',bg:'#ffffff',ink:'#222222',accent:'#222222',font:'Outfit Black',sub:'Outfit'}};
 const newElId=()=>'e'+Math.random().toString(36).slice(2,9);
-function dims(m,T){const k=TM(m);if(PHOTO_MODES.includes(k)){T=T||getTpl(m);const z=sizeOf(T);return{w:z.w,h:z.h}}return LAYOUT[k]} /* the mode's own design (scribble has its own), laid out like its photo type */
+function dims(m,T){if(PRINT_MODES.includes(m)){T=T||getTpl(m);const z=sizeOf(T);return{w:z.w,h:z.h}}return LAYOUT[m]} /* the mode's own design (scribble has its own), laid out like its photo type */
 /* photo arrangements: each returns slot rectangles inside area a={x,y,w,h,g} */
 function gridCells(a,c,r){const w=(a.w-a.g*(c-1))/c,h=(a.h-a.g*(r-1))/r,o=[];for(let j=0;j<r;j++)for(let i=0;i<c;i++)o.push({x:a.x+i*(w+a.g),y:a.y+j*(h+a.g),w,h});return o}
 const ARR={
@@ -3185,8 +3226,8 @@ function regenSlots(T){
     return{x:Math.round(x),y:Math.round(y),w:Math.max(30,Math.round(w)),h:Math.max(30,Math.round(h)),rot:r.rot||0}});
 }
 function defaultTpl(m,P){
-  m=TM(m);P=P||PRESETS[S.tplPreset]||PRESETS.classic;
-  if(m==='gif'||m==='boom'){const {w:W,h:H}=LAYOUT[m],s=m==='gif'?36:30;
+  P=P||PRESETS[S.tplPreset]||PRESETS.classic;
+  if(m==='gif'||m==='boom'||m==='video'){const {w:W,h:H}=LAYOUT[m],s=m==='gif'?36:m==='video'?52:30;
     return{bg:P.bg,photo:null,els:[{id:newElId(),type:'text',text:'{event}',x:W/2,y:H-Math.round(H*.09),size:s,color:P.ink,font:P.font,align:'center',pill:P.bg}]}}
   const size=DEF_SIZE[m],z=SIZES[size],W=z.w,H=z.h,cap=z.cap,cy=H-cap,strip=size==='2x6';
   const T={size,bg:P.bg,photo:{arr:DEF_ARR[m],margin:z.mg,gap:z.gp,caption:cap,pos:'bottom',frame:'none',radius:0,border:8,borderColor:'#ffffff',shadow:false,slots:[]},
@@ -3200,23 +3241,11 @@ function defaultTpl(m,P){
 const newTplId=()=>'t'+Math.random().toString(36).slice(2,9);
 const tplKey=(T,kind)=>T[kind+'Key']||`${kind}_${T.id}`;
 let SESSION_TPL={};
-/* Scribble has its own designs. The first time, they start as a copy of the Single designs (with their pictures copied),
-   so a booth that used Single for scribble prints exactly the same until you change it. */
 function copyStored(from,to){ /* straight from storage: this can run at start-up, before the pictures are loaded */
   return (async()=>{try{const b=await idb.get(from);if(b){await idb.set(to,b);assets[to]=assets[from]||await blobImg(b)}}catch(e){}})()}
-function seedScribble(){
-  const src=tplList('single'),sel=(S.tplSel||{}).single,ids={};
-  const L=src.map(T0=>{const T=JSON.parse(JSON.stringify(T0)),id=newTplId();ids[T0.id]=id;T.id=id;
-    copyStored(tplKey(T0,'bg'),'bg_'+id);copyStored(tplKey(T0,'ov'),'ov_'+id);delete T.bgKey;delete T.ovKey;
-    (T.els||[]).forEach(e=>{if(e.type==='sticker'){const n=newElId();copyStored('st_'+e.id,'st_'+n);e.id=n}else e.id=newElId()});
-    return T});
-  if(sel&&ids[sel])setSel('scribble',ids[sel]);
-  setTimeout(saveSettings,0);return L;
-}
 function tplList(m){
   if(!S.tpls||typeof S.tpls!=='object')S.tpls={};
   let L=S.tpls[m];
-  if(m==='scribble'&&(!Array.isArray(L)||!L.length))L=S.tpls.scribble=seedScribble();
   if(!Array.isArray(L)||!L.length){
     const old=S.tpl&&S.tpl[m],T=old&&Array.isArray(old.els)?old:defaultTpl(m);
     if(old){T.bgKey='bg_'+m;T.ovKey='ov_'+m;delete S.tpl[m]} /* keep pictures uploaded with the single-design version */
@@ -3233,8 +3262,8 @@ function replaceTpl(m,obj){const L=tplList(m),cur=getTpl(m),i=L.indexOf(cur);
   fixTpl(m,obj);L[i]=obj;return obj}
 const guestDesigns=m=>{const L=tplList(m),g=L.filter(t=>t.guest);return g.length?g:[getTpl(m)]};
 function fixTpl(m,T){
-  m=TM(m);if(!Array.isArray(T.els))T.els=[];if(!T.id)T.id=newTplId();if(!T.name)T.name='Design';
-  if(PHOTO_MODES.includes(m)){
+  if(!Array.isArray(T.els))T.els=[];if(!T.id)T.id=newTplId();if(!T.name)T.name='Design';
+  if(PRINT_MODES.includes(m)){
     if(T.size!=='custom'&&!SIZES[T.size])T.size=DEF_SIZE[m];
     if(T.size==='custom'){T.cw=clampN(+T.cw||4,[1,12]);T.ch=clampN(+T.ch||6,[1,12])}
     if(!T.photo)T.photo={};const p=T.photo,z=sizeOf(T);
@@ -3316,7 +3345,7 @@ function drawEl(x,e,opt){
 }
 /* Draws a finished frame: background, decorations set behind photos, photos (or placeholders), overlay PNG, then the elements. */
 function renderTpl(m,shots,opt){
-  opt=opt||{};const T=opt.tpl||getTpl(m),L=dims(m,T),K=opt.scale>1?opt.scale:1,c=mk(Math.round(L.w*K),Math.round(L.h*K)),x=c.getContext('2d'),photo=PHOTO_MODES.includes(TM(m));
+  opt=opt||{};const T=opt.tpl||getTpl(m),L=dims(m,T),K=opt.scale>1?opt.scale:1,c=mk(Math.round(L.w*K),Math.round(L.h*K)),x=c.getContext('2d'),photo=PRINT_MODES.includes(m);
   if(K!==1)x.scale(K,K); /* drawn in the design's own coordinates, only sharper: nothing moves */
   const bgi=assets[tplKey(T,'bg')],ovi=assets[tplKey(T,'ov')];
   if(photo){
@@ -3482,7 +3511,7 @@ function renderModes(){const P=S.ui.pick,items=layoutOf('pick').items||{};$('#mo
   const st=cardStyle(it);
   return `<button class="mode${it.dir==='row'?' row':''}" data-mode="${m}" data-mv="card_${m}" aria-label="${name}"${st?` style="${st}"`:''}>${icon}${txt?`<div class="mtxt">${txt}</div>`:''}</button>`}).join('');applyLayout()}
 const allowedFilters=()=>{const f=S.ui.capture.filters||{},k=Object.keys(FILTERS).filter(x=>f[x]!==false);return k.length?k:['none']};
-function shotRects(m){return PHOTO_MODES.includes(TM(m))?slotsOf(m):Array(shotCount(m)).fill(LAYOUT[m])}
+function shotRects(m){return PRINT_MODES.includes(m)?slotsOf(m):m==='video'?[VIDEO_CAM]:Array(shotCount(m)).fill(LAYOUT[m])}
 const setStageAr=r=>$('#stage').style.setProperty('--ar',(r.w/r.h).toFixed(4));
 function openReady(m){
   if(!SES||SES.ended||SES.shot)SES={id:statId(),t:Date.now(),mode:m,shot:false,results:false,ended:false};else SES.mode=m;
@@ -3492,7 +3521,7 @@ function openReady(m){
   $('#chips').hidden=!C.showFilters||af.length<2;
   $('#chips').innerHTML=af.map(k=>`<button class="chip" data-f="${k}" aria-pressed="${k===filter}">${FILTERS[k].l}</button>`).join('');
   setFilter(filter);
-  $('#thumbs').innerHTML=m==='boom'?'':rects.map(r=>`<i class="slot" style="--ar:${(r.w/r.h).toFixed(4)}"></i>`).join('');
+  $('#thumbs').innerHTML=m==='boom'||m==='video'?'':rects.map(r=>`<i class="slot" style="--ar:${(r.w/r.h).toFixed(4)}"></i>`).join('');
   const prev=C.side==='preview'&&PHOTO_MODES.includes(m);$('#thumbs').hidden=C.side!=='thumbs';$('#livePrev').hidden=!prev;if(prev)updateLivePrev([]);
   $('#status').textContent='';$('#startBtn').textContent=(m==='boom'?C.boomStart:C.startText)||'Start';
   go('ready');
@@ -3547,13 +3576,8 @@ function storyCodec(){ /* the first H.264 profile this laptop can encode at stor
     return null})();
   return storyCodecP;
 }
-class StoryVideo{
-  constructor(codec,bps){
-    this.cv=mk(STORY_W,STORY_H);this.x=this.cv.getContext('2d');this.bg=mk(54,96);this.bx=this.bg.getContext('2d');this.n=0;this.err=null;
-    this.muxer=new Mp4Muxer.Muxer({target:new Mp4Muxer.ArrayBufferTarget(),video:{codec:'avc',width:STORY_W,height:STORY_H,frameRate:STORY_FPS},fastStart:'in-memory'});
-    this.enc=new VideoEncoder({output:(chunk,meta)=>this.muxer.addVideoChunk(chunk,meta),error:e=>{this.err=e}});
-    this.enc.configure({codec,width:STORY_W,height:STORY_H,bitrate:bps||STORY_BPS,framerate:STORY_FPS,avc:{format:'avc'},latencyMode:'quality'});
-  }
+class StoryComposer{
+  constructor(){this.cv=mk(STORY_W,STORY_H);this.x=this.cv.getContext('2d');this.bg=mk(54,96);this.bx=this.bg.getContext('2d')}
   /* one picture the story way: a blurred, darkened copy fills the screen and the picture itself sits in the middle */
   compose(src){
     const sw=src.width,sh=src.height,x=this.x,b=this.bx;if(!sw||!sh)return;
@@ -3564,6 +3588,23 @@ class StoryVideo{
     const k=Math.min((STORY_W-96)/sw,(STORY_H-240)/sh),dw=sw*k,dh=sh*k;
     x.shadowColor='rgba(0,0,0,.45)';x.shadowBlur=48;x.shadowOffsetY=12;x.drawImage(src,(STORY_W-dw)/2,(STORY_H-dh)/2,dw,dh);x.restore();
   }
+}
+/* The encoder. With audioRate it also encodes the microphone's sound (AAC) into the same ordinary MP4, so phones and Instagram accept it. */
+class StoryVideo extends StoryComposer{
+  constructor(codec,bps,audioRate){
+    super();this.n=0;this.err=null;this.an=0;this.ar=audioRate||0;
+    const mo={target:new Mp4Muxer.ArrayBufferTarget(),video:{codec:'avc',width:STORY_W,height:STORY_H,frameRate:STORY_FPS},fastStart:'in-memory'};
+    if(this.ar)mo.audio={codec:'aac',numberOfChannels:1,sampleRate:this.ar};
+    this.muxer=new Mp4Muxer.Muxer(mo);
+    this.enc=new VideoEncoder({output:(chunk,meta)=>this.muxer.addVideoChunk(chunk,meta),error:e=>{this.err=e}});
+    this.enc.configure({codec,width:STORY_W,height:STORY_H,bitrate:bps||STORY_BPS,framerate:STORY_FPS,avc:{format:'avc'},latencyMode:'quality'});
+    if(this.ar){this.aenc=new AudioEncoder({output:(chunk,meta)=>this.muxer.addAudioChunk(chunk,meta),error:e=>{this.err=e}});
+      this.aenc.configure({codec:VIDEO_AAC,sampleRate:this.ar,numberOfChannels:1,bitrate:96000})}
+  }
+  addAudio(f32){ /* mono samples from the microphone; time follows the number of samples so sound and picture stay together */
+    if(!this.aenc||this.err)return;
+    const ad=new AudioData({format:'f32',sampleRate:this.ar,numberOfFrames:f32.length,numberOfChannels:1,timestamp:Math.round(this.an*1e6/this.ar),data:f32});
+    this.aenc.encode(ad);ad.close();this.an+=f32.length}
   async push(frames){ /* encode the composed picture as this many 30 fps frames */
     for(let i=0;i<frames;i++){
       if(this.err)throw this.err;
@@ -3572,8 +3613,8 @@ class StoryVideo{
       while(this.enc.encodeQueueSize>6)await wait(4)}
   }
   async add(src,ms){this.compose(src);await this.push(Math.max(1,Math.round(ms*STORY_FPS/1000)))}
-  async addUntil(src,ms){const f=Math.round(ms*STORY_FPS/1000)-this.n;if(f<1)return;this.compose(src);await this.push(f)} /* keeps a live recording in real time */
-  async finish(){await this.enc.flush();if(this.err)throw this.err;this.enc.close();this.muxer.finalize();return new Blob([this.muxer.target.buffer],{type:'video/mp4'})}
+  async addUntil(src,ms,over){const f=Math.round(ms*STORY_FPS/1000)-this.n;if(f<1)return;this.compose(src);if(over)this.x.drawImage(over,0,0,STORY_W,STORY_H);await this.push(f)} /* keeps a live recording in real time; over = the design drawn on top */
+  async finish(){await this.enc.flush();if(this.aenc){await this.aenc.flush();this.aenc.close()}if(this.err)throw this.err;this.enc.close();this.muxer.finalize();return new Blob([this.muxer.target.buffer],{type:'video/mp4'})}
 }
 /* a short animation (each frame shown frameMs) as a story video, looped until it lasts at least 6 s (at most 15 s) so it doesn't flash past in a Story */
 async function framesToStory(frames,frameMs,onProg){
@@ -3627,8 +3668,89 @@ async function scribblePhase(cd){
     await wait(120);return rec.stop();
   };
 }
-$('#stage').addEventListener('click',()=>{if(scribbleStop&&S.scribbleEarly)scribbleStop()});
-document.addEventListener('keydown',e=>{if(scribbleStop&&S.scribbleEarly&&[' ','Enter','PageDown','ArrowRight'].includes(e.key)){e.preventDefault();scribbleStop()}});
+/* ---------- video message: a short clip with the guest's voice ----------
+   Recorded onto the 9:16 story frame (the camera picture in the middle on a blurred copy of itself, the event's video design on top).
+   Preferred: an ordinary H.264 + AAC MP4 made with WebCodecs, which phones and Instagram accept. If this window can't encode AAC,
+   the browser's own recorder is used (MP4 or WebM, whichever it supports). */
+const VIDEO_AAC='mp4a.40.2';
+let videoPlanP=null;
+function videoPlan(){
+  if(!videoPlanP)videoPlanP=(async()=>{
+    const codec=await storyCodec();
+    if(codec&&window.AudioEncoder&&window.AudioData){try{const r=await AudioEncoder.isConfigSupported({codec:VIDEO_AAC,sampleRate:48000,numberOfChannels:1,bitrate:96000});if(r&&r.supported)return{how:'story',ext:'mp4',codec}}catch(e){}}
+    const type=window.MediaRecorder&&['video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].find(t=>MediaRecorder.isTypeSupported(t));
+    return type?{how:'rec',ext:/mp4/.test(type)?'mp4':'webm',type}:null})();
+  return videoPlanP;
+}
+async function openMic(){ /* the chosen microphone, else any; null when there is none (the video then has no sound) */
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return null;
+  const a={echoCancellation:true,noiseSuppression:true,autoGainControl:true};
+  try{if(S.videoMic)return await navigator.mediaDevices.getUserMedia({audio:Object.assign({deviceId:{exact:S.videoMic}},a),video:false})}catch(e){console.warn('chosen microphone',e)}
+  try{return await navigator.mediaDevices.getUserMedia({audio:a,video:false})}catch(e){console.warn('microphone',e);return null}
+}
+function micPcm(stream){ /* mono 48 kHz sound from the microphone, handed over in small chunks (h.cb); h.stop() ends it */
+  const ac=new (window.AudioContext||window.webkitAudioContext)({sampleRate:48000}),src=ac.createMediaStreamSource(stream),pr=ac.createScriptProcessor(4096,1,1),mute=ac.createGain(),h={rate:ac.sampleRate,cb:null};
+  mute.gain.value=0;pr.onaudioprocess=e=>{if(h.cb)h.cb(new Float32Array(e.inputBuffer.getChannelData(0)))};
+  src.connect(pr);pr.connect(mute);mute.connect(ac.destination);ac.resume().catch(()=>{});
+  h.stop=()=>{try{pr.onaudioprocess=null;pr.disconnect();src.disconnect();ac.close()}catch(e){}};return h;
+}
+/* draws the camera (cropped to the shape of cv, mirrored like the other modes, with the chosen filter) into cv */
+function videoFrameDrawer(cv){
+  const x=cv.getContext('2d'),w=cv.width,h=cv.height,css=FILTERS[filter]?FILTERS[filter].css:'none',lut=FILTERS[filter]&&FILTERS[filter].custom&&FILTERS[filter].kind==='lut'?filter:null;
+  return()=>{try{const s=camSource(),a=w/h;let sw=s.w,sh=s.w/a;if(sh>s.h){sh=s.h;sw=s.h*a}
+    x.setTransform(1,0,0,1,0,0);x.filter=css;if(S.mirrorOut){x.translate(w,0);x.scale(-1,1)}
+    x.drawImage(s.src,(s.w-sw)/2,(s.h-sh)/2,sw,sh,0,0,w,h);x.setTransform(1,0,0,1,0,0);x.filter='none';if(lut)applyCustomFilter(cv,lut)}catch(e){}}
+}
+const videoOverlay=qr=>renderTpl('video',[mk(8,8)],{qrUrl:qr}); /* the design (frame, logo, texts, QR) on a see-through story frame */
+async function recordVideo(plan,mic,overlay){
+  const st=$('#status'),cv=mk(VIDEO_CAM.w,VIDEO_CAM.h),draw=videoFrameDrawer(cv),secs=Math.round(num('videoSec'));
+  const mp=mic&&plan.how==='story'?micPcm(mic):null;
+  let sv=null,comp=null,rec=null,tick,adding=false,svErr=null;const chunks=[];
+  draw();
+  beep(988,.15);await wait(260); /* the start beep is over before the microphone starts, so it isn't in the video */
+  if(plan.how==='story'){sv=new StoryVideo(plan.codec,STORY_BPS,mp?mp.rate:0);const t0=performance.now();if(mp)mp.cb=f=>sv.addAudio(f);
+    tick=setInterval(()=>{draw();if(adding||svErr)return;adding=true;sv.addUntil(cv,performance.now()-t0,overlay).catch(e=>{svErr=e;console.warn(e)}).finally(()=>{adding=false})},1000/30)}
+  else{comp=new StoryComposer();const stream=comp.cv.captureStream(30);if(mic)mic.getAudioTracks().forEach(t=>stream.addTrack(t));
+    rec=new MediaRecorder(stream,{mimeType:plan.type,videoBitsPerSecond:STORY_BPS,audioBitsPerSecond:96000});rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
+    rec.__stopped=new Promise(r=>{rec.onstop=r});rec.start(1000);
+    tick=setInterval(()=>{draw();comp.compose(cv);comp.x.drawImage(overlay,0,0,STORY_W,STORY_H)},1000/30)}
+  const recEl=$('#rec');recEl.textContent=S.videoText||'Recording';recEl.hidden=false;
+  let ended=false;const endP=new Promise(r=>{scribbleStop=()=>{ended=true;r()}}); /* the tap-to-finish switch is shared with Scribble */
+  try{
+    for(let left=secs;left>0&&!ended;left--){st.textContent=`${S.videoText||''} ${mmss(left)}`.trim();await Promise.race([wait(1000),endP])} /* no beeps while recording: the microphone would hear them */
+  }finally{scribbleStop=null;clearInterval(tick);recEl.hidden=true;recEl.textContent=S.ui.capture.boomText||'';if(mp)mp.stop()}
+  beep(988,.15);
+  if(sv){const t0=Date.now();while(adding&&Date.now()-t0<5000)await wait(10);if(svErr)throw svErr;return sv.finish()}
+  if(rec.state!=='inactive')rec.stop();await rec.__stopped;return chunks.length?new Blob(chunks,{type:plan.type.split(';')[0]}):null;
+}
+async function runVideo(cd){
+  const st=$('#status'),plan=await videoPlan();
+  if(!plan)throw new Error('This window can\'t record video with sound.');
+  await fontsReady();
+  const sid=newSid(),dl=deliveryFor(sid,plan.ext,[],'video'),mic=await openMic();
+  if(!mic)toast('No microphone was found, so this video has no sound. Check Settings → Modes → Video message.');
+  setStageAr(VIDEO_CAM);st.textContent=S.videoReady||'';
+  let blob=null;
+  try{await countdown(cd);$('#count').hidden=true;blob=await recordVideo(plan,mic,videoOverlay(dl.qr))}
+  finally{if(mic)mic.getTracks().forEach(t=>t.stop())}
+  if(!blob||!blob.size)throw new Error('The video could not be recorded.');
+  $('#workMsg').textContent='Saving your video…';setProg(.6);go('work');
+  evStat('session',mode);
+  const item={id:String(Date.now()),t:Date.now(),ev:S.eventId||'',ses:SES?SES.id:'',shots:1,mode,kind:'video',blob,extras:[],sid,qrUrl:dl.qr,cloudPath:dl.cloudPath||null,cloud:dl.cloudPath?'pending':null,cloudDone:{},print:null};
+  setProg(1);await saveSession(item,dl);
+}
+/* saving a finished session: on the booth laptop, in the gallery, then the results screen (and the upload and auto-print) */
+async function saveSession(item,dl){
+  if(SERVER){$('#workMsg').textContent='Saving…';const ok=await upload(item);if(dl.local&&!ok)item.qrUrl=null}
+  try{await idb.add(item)}catch(e){console.warn('Gallery save failed',e)}
+  if(S.autoDownload){download(item);item.extras.forEach((x,i)=>setTimeout(()=>download(item,x.part),400*(i+1)))}
+  showReview(item,'session');
+  if(item.cloud==='pending')pushCloud(item);
+  if(S.ui.share.autoPrint&&item.kind==='photo')setTimeout(()=>printItem(item),700);
+}
+const earlyOk=()=>mode==='video'?S.videoEarly:S.scribbleEarly; /* tap or remote to finish a scribble or a video message early */
+$('#stage').addEventListener('click',()=>{if(scribbleStop&&earlyOk())scribbleStop()});
+document.addEventListener('keydown',e=>{if(scribbleStop&&earlyOk()&&[' ','Enter','PageDown','ArrowRight'].includes(e.key)){e.preventDefault();scribbleStop()}});
 const setProg=p=>{$('#progBar').style.width=Math.round(p*100)+'%'};
 /* Live photo: keeps the last ~0.8 s of small frames during the countdown, then records ~0.8 s more after the shot. */
 const LIVE_MAX=720,LIVE_FPS=10;
@@ -3648,6 +3770,7 @@ async function runSession(){
   if(!SES.shot){SES.shot=true;SES.t=Date.now();const T0=getTpl(mode)||{};track('session_start',{mode,design:T0.name||'',tpl:T0.id||'',filter})}
   try{
     const cd=Math.round(num('countdown'));
+    if(mode==='video'){await runVideo(cd);return}
     const C=S.ui.capture,photoMode=PHOTO_MODES.includes(mode),live=!!S.livePhoto&&photoMode,clips=[];
     const L0=photoMode?dims(mode):null,liveK=L0?Math.min(1,LIVE_MAX/Math.max(L0.w,L0.h)):1;
     const scrib=mode==='scribble';let scribVid=null;
@@ -3682,7 +3805,7 @@ async function runSession(){
       kind='gif';
     }else{
       await ensurePrinters(); /* the printer's quality (300×300 or 300×600 dpi) sets how sharp the print is drawn */
-      pspec=PHOTO_MODES.includes(TM(mode))?printSpec(getTpl(mode)):null;pspec&&(pspec.k=printScale(printClass(pspec)));
+      pspec=PRINT_MODES.includes(mode)?printSpec(getTpl(mode)):null;pspec&&(pspec.k=printScale(printClass(pspec)));
       const c=renderTpl(mode,frames,{qrUrl:dl.qr,scale:pspec?pspec.k:1});setProg(.3);blob=await toBlob(c,'image/jpeg',.94);kind='photo'}
     const extras=[];
     if(photoMode&&S.photoGif){ /* bonus GIF that flips through the session's photos, framed by the GIF design */
@@ -3707,12 +3830,7 @@ async function runSession(){
     evStat('session',mode);
     const item={id:String(Date.now()),t:Date.now(),ev:S.eventId||'',ses:SES?SES.id:'',shots:frames.length,mode,kind,blob,extras,sid,qrUrl:dl.qr,cloudPath:dl.cloudPath||null,cloud:dl.cloudPath?'pending':null,cloudDone:{},
       print:kind==='photo'&&pspec?pspec:null}; /* how this session prints: paper, two strips per sheet for strips, and k (1 or 2) for how sharp it was drawn */
-    if(SERVER){$('#workMsg').textContent='Saving…';const ok=await upload(item);if(dl.local&&!ok)item.qrUrl=null}
-    try{await idb.add(item)}catch(e){console.warn('Gallery save failed',e)}
-    if(S.autoDownload){download(item);item.extras.forEach((x,i)=>setTimeout(()=>download(item,x.part),400*(i+1)))}
-    showReview(item,'session');
-    if(item.cloud==='pending')pushCloud(item);
-    if(S.ui.share.autoPrint&&kind==='photo')setTimeout(()=>printItem(item),700);
+    await saveSession(item,dl);
   }catch(e){console.error(e);toast('Something went wrong: '+(e.message||e));go('ready')}
   finally{busy=false;grabFlip=null;scribbleStop=null;document.body.classList.remove('capturing');st.textContent='';$('#count').hidden=true;$('#rec').hidden=true}
 }
@@ -3810,11 +3928,14 @@ async function pickPrinter(cls){
 const CAL_OPEN=new Set();
 const calOf=c=>{const k=c&&c.cal||{};return{x:clampN(+k.x||0,[-5,5]),y:clampN(+k.y||0,[-5,5]),s:clampN(+k.s||100,[95,105])}};
 const calOn=c=>{const k=calOf(c);return !!(k.x||k.y||k.s!==100)};
-function calUi(c,inf){const k=calOf(c),num=(f,l,v,min,max,st)=>`<label>${l}<input type="number" data-pf="${f}" value="${v}" min="${min}" max="${max}" step="${st}"></label>`;
+/* a slider with − / + for fine steps, and its value beside it (the booth is used on a touch screen) */
+const calTxt=(f,v)=>f==='cals'?(+v).toFixed(1)+' %':((+v>0?'+':'')+(+v).toFixed(1)+' mm');
+function calUi(c,inf){const k=calOf(c),num=(f,l,v,min,max,st)=>`<label class="slr">${l}<span class="slrow"><button type="button" class="nudge" data-nudge="${f}" data-d="-0.1" aria-label="Less">−</button><input type="range" data-pf="${f}" value="${v}" min="${min}" max="${max}" step="${st}"><button type="button" class="nudge" data-nudge="${f}" data-d="0.1" aria-label="More">+</button><output>${calTxt(f,v)}</output></span></label>`;
   return `<details class="paperx" data-calfor="${esc(c.name)}" ${CAL_OPEN.has(c.name)?'open':''}><summary>Calibration${calOn(c)?` · on (${k.x>0?'+':''}${k.x} mm across, ${k.y>0?'+':''}${k.y} mm down${k.s!==100?', '+k.s+'%':''})`:''}</summary>
-    <p class="hint">If prints come out off-centre: print the calibration sheet, read on its rulers how far the centre cross landed from the middle of the paper, and enter that here. It prints with these values, so print it again to check.</p>
-    <div class="row2">${num('calx','Move right (mm, minus = left)',k.x,-5,5,.1)}${num('caly','Move down (mm, minus = up)',k.y,-5,5,.1)}</div>
-    ${num('cals','Size (%) — above 100 if white edges show, below if the edges get cut',k.s,95,105,.1)}
+    <p class="hint">If prints come out off-centre: print the calibration sheet, read on its rulers how far the centre cross landed from the middle of the paper, and set that here. It prints with these values, so print it again to check.</p>
+    ${num('calx','Move right (minus = left)',k.x,-5,5,.1)}
+    ${num('caly','Move down (minus = up)',k.y,-5,5,.1)}
+    ${num('cals','Size: raise it if white edges show, lower it if the edges get cut',k.s,95,105,.1)}
     <div class="btnrow"><button data-pa="calsheet">Print calibration sheet</button>${inf&&inf.cut?'<button data-pa="calstrip">Calibration strip (two strips)</button>':''}<button data-pa="calreset">Reset</button></div>
   </details>`}
 /* Apply a printer's calibration to the finished sheet: scale about the centre, then shift. Off-paper parts are white. */
@@ -3873,7 +3994,7 @@ function renderPrinting(){
   else if(!PRINTERS){st.className='srv';st.textContent='Looking for printers…'}
   else if(!PRINTERS.length){st.className='srv';st.textContent='No printers are installed. Install the printer driver (see Printer drivers below), switch the printer on, then tap Refresh printers.'}
   else{st.className='srv'+(on.length?' on':'');st.innerHTML=on.length?`Prints go straight to ${on.map(c=>'<b>'+esc(c.name)+'</b>').join(' and ')}, with no dialog.${on.length>1?' Each print goes to the working printer with the fewest waiting jobs.':''}`:'Add a printer below.'}
-  const used=new Set(['4x6']);MODE_ORDER.filter(m=>PHOTO_MODES.includes(TM(m))).forEach(m=>tplList(m).forEach(T=>{const s=printSpec(T);used.add(s.strip?'2x6':PAPER_LIST[s.paper].cls)}));
+  const used=new Set(['4x6']);MODE_ORDER.filter(m=>PRINT_MODES.includes(m)).forEach(m=>tplList(m).forEach(T=>{const s=printSpec(T);used.add(s.strip?'2x6':PAPER_LIST[s.paper].cls)}));
   $('#prList').innerHTML=L.length?L.map((c,i)=>prCard(c,i,used)).join(''):'<p class="hint">No printer added yet.</p>';
   const avail=(PRINTERS||[]).filter(p=>!L.some(c=>c.name===p.name)).sort((a,b)=>(b.dnp?1:0)-(a.dnp?1:0));
   $('#prAddRow').hidden=!avail.length;$('#prAdd').innerHTML=avail.map(p=>`<option value="${esc(p.name)}">${esc(p.name)}${p.dnp?' (DNP)':''}</option>`).join('');
@@ -3884,12 +4005,25 @@ async function loadDrivers(){
   try{const r=await(await fetch('/api/drivers',{cache:'no-store'})).json();DRIVERS=r.ok?r.drivers:[]}catch(e){DRIVERS=[]}
   renderDrivers();
 }
+/* One row per printer, not per driver package: the packages for the same printer (for example the RX1 one for Windows 11 and the
+   one for Windows 7/8/10) are merged, and the row uses the package that suits this Windows. The other is mentioned as a note. */
+function driverGroups(){
+  const by=new Map();
+  (DRIVERS||[]).forEach((d,i)=>{const key=String(d.name||'').replace(/\s*\([^)]*\)/g,'').trim().toLowerCase()||'driver'+i;
+    if(!by.has(key))by.set(key,{title:String(d.name||'Driver').replace(/\s*\((Windows[^)]*)\)/i,'').trim(),items:[]});by.get(key).items.push({d,i})});
+  return [...by.values()].map(g=>{const ok=g.items.filter(x=>!x.d.warn),use=(ok.find(x=>x.d.installed)||ok[0]||g.items[0]);
+    return{title:g.title,use,others:g.items.filter(x=>x!==use)}});
+}
 function renderDrivers(){
   const el=$('#drvList');if(!el)return;
   if(!DRIVERS){el.innerHTML='<p class="hint">Looking for drivers…</p>';return}
-  el.innerHTML=DRIVERS.length?DRIVERS.map((d,i)=>`<div class="drv"><div><b>${esc(d.name)}</b><br><span class="hint">${esc((d.models||[]).join(', '))} · driver ${esc(d.version||'?')} · ${d.installed?'installed'+(d.installedVersion&&d.installedVersion!=='installed'?' ('+esc(d.installedVersion)+')':''):'not installed'}</span>${d.warn?`<br><span class="hint" style="color:#ffcf6b">${esc(d.warn)}</span>`:''}</div><button data-drv="${i}" ${d.warn?'disabled':''}>${d.installed?'Repair / update':'Install'}</button></div>`).join(''):'<p class="hint">No drivers found in the drivers folder.</p>';
+  el.innerHTML=DRIVERS.length?driverGroups().map(g=>{const d=g.use.d,
+      chip=d.installed?`<span class="chip2 ok">Installed${d.installedVersion&&d.installedVersion!=='installed'?' · '+esc(d.installedVersion):''}</span>`:'<span class="chip2 warn">Not installed</span>',
+      models=(d.models||[]).slice(0,4).join(', '),
+      note=d.warn?`<span class="hint" style="color:#ffcf6b">${esc(d.warn)}</span>`:g.others.length?`<span class="hint">A package for another Windows version is also in the folder; it isn't needed on this computer.</span>`:'';
+    return `<div class="drv"><div class="drvt"><div class="drvh"><b>${esc(g.title)}</b>${chip}</div><span class="hint">Driver ${esc(d.version||'?')}${models?' · works with '+esc(models):''}</span>${note}</div><button data-drv="${g.use.i}" ${d.warn?'disabled':''}>${d.installed?'Repair / update':'Install'}</button></div>`}).join(''):'<p class="hint">No drivers found in the drivers folder.</p>';
   /* DNP printers the booth supports but whose driver isn't bundled (DNP lists no DS620 driver for Windows 11) */
-  if(!DRIVERS.some(d=>/620/.test(d.name+' '+(d.models||[]).join(' '))))el.insertAdjacentHTML('beforeend',`<div class="drv"><div><b>DNP DS620 / DS620A</b><br><span class="hint">Supported by the booth. Driver not included: DNP's is for Windows 7, 8 and 10 only.</span><br><span class="hint">When you get the printer, put its driver folder (the one with the .inf file) in the <b>drivers</b> folder, then tap Refresh printers.</span></div><button disabled>Not included</button></div>`);
+  if(!DRIVERS.some(d=>/620/.test(d.name+' '+(d.models||[]).join(' '))))el.insertAdjacentHTML('beforeend',`<div class="drv"><div class="drvt"><div class="drvh"><b>DNP DS620 / DS620A</b><span class="chip2">Driver not included</span></div><span class="hint">Supported by the booth, but DNP's driver is for Windows 7, 8 and 10 only. When you get the printer, put its driver folder (the one with the .inf file) in the <b>drivers</b> folder, then tap Refresh printers.</span></div><button disabled>Not included</button></div>`);
 }
 async function sendPrint(blob,cls,only,cut){
   await ensurePrinters();
@@ -4151,7 +4285,7 @@ function itemUrl(it){
   if(it.remoteId&&SERVER&&guestBase())return `${guestBase()}/p/${it.remoteId}`;
   return null;
 }
-function partsOf(it){return[{part:'main',label:it.kind==='gif'?(MODES[it.mode]?modeName(it.mode):'GIF'):'Photo',blob:it.blob}].concat(it.extras||[])}
+function partsOf(it){return[{part:'main',label:it.kind==='gif'?(MODES[it.mode]?modeName(it.mode):'GIF'):it.kind==='video'?'Video':'Photo',blob:it.blob}].concat(it.extras||[])}
 const partBlob=(it,p)=>(partsOf(it).find(o=>o.part===p)||{blob:it.blob}).blob;
 /* one QR per session, whichever tab (photo, live photo, GIF) is showing. Over Wi-Fi it opens the booth's page with every version;
    online it opens the main picture (Supabase can only link to one file). */
@@ -4233,7 +4367,7 @@ function renderReview(){
   const it=current,ctx=reviewCtx,parts=partsOf(it);if(!parts.some(p=>p.part===view))view='main';
   if(resultURL)URL.revokeObjectURL(resultURL);const vb=partBlob(it,view),isVid=/^video\//.test(vb.type),rv=$('#resultVid');resultURL=URL.createObjectURL(vb);
   $('#result').hidden=isVid;rv.hidden=!isVid;
-  if(isVid){rv.src=resultURL;rv.play().catch(()=>{})}else{rv.pause();rv.removeAttribute('src');$('#result').src=resultURL}
+  if(isVid){rv.muted=!(it.kind==='video'&&view==='main');rv.src=resultURL;rv.play().catch(()=>{rv.muted=true;rv.play().catch(()=>{})})}else{ /* a video message plays with its sound; the guest tapped to get here, so the browser allows it */rv.pause();rv.removeAttribute('src');$('#result').src=resultURL}
   $('#views').innerHTML=parts.length>1?parts.map(p=>`<button data-view="${p.part}" role="tab" aria-pressed="${p.part===view}">${esc(viewLabel(p))}</button>`).join(''):'';
   const U=S.ui.share,L=U.labels,B=U.btn,sess=ctx==='session',A=[];
   if(it.kind==='photo'&&view==='main'&&(B.print||!sess))A.push(['print',L.print||'Print']);
@@ -4314,7 +4448,7 @@ function showSettingsTab(t,focus){
 $('#snav').addEventListener('click',e=>{const b=e.target.closest('[data-st]');if(b)showSettingsTab(b.dataset.st)});
 $('#snav').addEventListener('keydown',e=>{const i=SETTINGS_TABS.indexOf(settingsTab),n=SETTINGS_TABS.length;
   const d={ArrowDown:1,ArrowRight:1,ArrowUp:-1,ArrowLeft:-1}[e.key];if(!d)return;e.preventDefault();showSettingsTab(SETTINGS_TABS[(i+d+n)%n],true)});
-function openAdmin(tab){adminOpen=true;fillForm();$('#admin').hidden=false;showSettingsTab(typeof tab==='string'?tab:settingsTab);listCams();syncCamera();detectServer().then(()=>{renderAnalytics();listCams();loadCanonSettings();loadPrinters().then(()=>{renderPrinting();refreshStatuses();loadDrivers()});loadWin();renderFolder()})}
+function openAdmin(tab){adminOpen=true;fillForm();$('#admin').hidden=false;showSettingsTab(typeof tab==='string'?tab:settingsTab);listCams();listMics();syncCamera();detectServer().then(()=>{renderAnalytics();listCams();loadCanonSettings();loadPrinters().then(()=>{renderPrinting();refreshStatuses();loadDrivers()});loadWin();renderFolder()})}
 function camInfoText(){const t=stream&&stream.getVideoTracks()[0];return t&&cam.videoWidth?`Now using: ${canonActive()?'Canon over USB (live view; photos at full resolution)':t.label||'camera'} at ${cam.videoWidth}×${cam.videoHeight}.`:''}
 function renderFolder(){const b=$('#folderBox');if(!SERVER){b.hidden=true;return}b.hidden=false;
   $('#folderPath').innerHTML=`<b>${esc(SERVER.dir)}</b>${S.eventFolders?`\\${esc(slug(S.eventName))}`:''}\\<i>date</i>`;$('#folderPick').hidden=!(SERVER.features&&SERVER.features.print)}
@@ -4325,12 +4459,12 @@ async function loadWin(){
   try{const r=await(await fetch('/api/appconfig',{cache:'no-store'})).json();b.hidden=!r.windows&&!r.appWindow;$('#winFull').checked=!!r.config.fullscreen;$('#winKiosk').checked=!!r.config.kiosk}catch(e){b.hidden=true}
 }
 async function saveWin(){try{await fetch('/api/appconfig',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fullscreen:$('#winFull').checked,kiosk:$('#winKiosk').checked})});toast('Saved. It applies next time the booth opens.')}catch(e){toast('Could not save')}}
-function closeAdmin(){adminOpen=false;$('#admin').hidden=true;liveLutStop($('#ftPrev'));$('#ftPrev').style.filter='';$('#ftOut').hidden=true;setTimeout(syncCamera,0);applyTheme();lastAct=Date.now()}
+function closeAdmin(){adminOpen=false;stopMicTest();$('#admin').hidden=true;liveLutStop($('#ftPrev'));$('#ftPrev').style.filter='';$('#ftOut').hidden=true;setTimeout(syncCamera,0);applyTheme();lastAct=Date.now()}
 function renderScribSize(){const el=$('#scribbleSize');if(!el)return;const s=Math.round(num('scribbleSec')),v=Math.max(1,Math.round(s/scribSpeed()));
   el.textContent=`A ${s}-second scribble makes a ${v}-second video of about ${Math.max(.1,scribMB()).toFixed(1)} MB.`}
 function fillForm(){
   $$('#admin [data-k]').forEach(el=>{const v=S[el.dataset.k];if(el.type==='checkbox')el.checked=!!v;else el.value=v});renderScribSize();syncLockFields();
-  $('#autoPrintChk').checked=!!S.ui.share.autoPrint; /* the same switch as Customise booth screens → Results */
+  $('#autoPrintChk').checked=!!S.ui.share.autoPrint;$('#printBtnChk').checked=S.ui.share.btn.print!==false; /* both live here only: Customise booth screens → Results just points to this tab */
   renderFontList();ftSel=FILTERS[ftSel]?ftSel:'none';renderFilterMgr();applyLive($('#ftPrev'),ftSel);syncModeOptions();renderEvents();
   $('#modeChecks').innerHTML=MODE_ORDER.map(m=>`<label class="chk"><input type="checkbox" data-mode="${m}" ${S.modes[m]?'checked':''}> ${MODES[m].t}</label>`).join('');
   const r=$('#resetBtn');delete r.dataset.armed;r.textContent='Reset settings';renderDelivery();renderPrinting();$('#camInfo').textContent=camInfoText();
@@ -4359,11 +4493,37 @@ $('#admin').addEventListener('input',e=>{const el=e.target;
 /* Only show the settings of modes and extras that are switched on */
 function syncModeOptions(){
   const M=S.modes||{},photo=PHOTO_MODES.some(m=>M[m]);
-  const on={gif:!!M.gif,boom:!!M.boom,scribble:!!M.scribble,photo,livePhoto:photo&&!!S.livePhoto,photoGif:photo&&!!S.photoGif,nomodes:!M.gif&&!M.boom&&!M.scribble&&!photo};
+  const on={gif:!!M.gif,boom:!!M.boom,scribble:!!M.scribble,video:!!M.video,photo,livePhoto:photo&&!!S.livePhoto,photoGif:photo&&!!S.photoGif,nomodes:!M.gif&&!M.boom&&!M.scribble&&!M.video&&!photo};
   $$('#admin [data-show]').forEach(el=>{el.hidden=!on[el.dataset.show]});
 }
+/* ---- Settings → Modes → Video message: choose the microphone and see that it hears you ---- */
+let micTestStream=null,micTestT=0,micTestAc=null;
+async function listMics(){
+  const sel=$('#micSel');if(!sel||!navigator.mediaDevices)return;
+  try{const ds=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='audioinput'&&d.deviceId&&d.deviceId!=='default'&&d.deviceId!=='communications');
+    sel.innerHTML='<option value="">Default microphone</option>'+ds.map((d,i)=>`<option value="${esc(d.deviceId)}">${esc(d.label||'Microphone '+(i+1))}</option>`).join('');
+    sel.value=S.videoMic||'';if(sel.value!==(S.videoMic||''))sel.value=''}catch(e){}
+}
+function stopMicTest(){
+  clearInterval(micTestT);if(micTestStream){micTestStream.getTracks().forEach(t=>t.stop());micTestStream=null}
+  if(micTestAc){micTestAc.close().catch(()=>{});micTestAc=null}
+  const m=$('#micMeter'),b=$('#micTest');if(m)m.hidden=true;if(b)b.textContent='Test the microphone'}
+async function testMic(){
+  if(micTestStream){stopMicTest();$('#micMsg').textContent='';return}
+  const msg=$('#micMsg');msg.textContent='Asking for the microphone…';
+  try{micTestStream=await navigator.mediaDevices.getUserMedia({audio:S.videoMic?{deviceId:{exact:S.videoMic}}:true,video:false})}
+  catch(e){msg.textContent=e&&e.name==='NotAllowedError'?'The microphone is blocked. Allow it for this window, then try again.':'No microphone was found, or it is busy.';return}
+  listMics();micTestAc=new(window.AudioContext||window.webkitAudioContext)();
+  const an=micTestAc.createAnalyser(),src=micTestAc.createMediaStreamSource(micTestStream);an.fftSize=1024;src.connect(an);
+  const buf=new Uint8Array(an.fftSize),bar=$('#micMeter i');$('#micMeter').hidden=false;$('#micTest').textContent='Stop the test';
+  msg.textContent='Say something: the bar should move. The test stops by itself after 20 seconds.';const t0=Date.now();
+  micTestT=setInterval(()=>{an.getByteTimeDomainData(buf);let m=0;for(const v of buf)m=Math.max(m,Math.abs(v-128));bar.style.width=Math.min(100,Math.round(m/128*140))+'%';
+    if(Date.now()-t0>20000||!adminOpen){stopMicTest();msg.textContent=''}},80);
+}
+$('#micTest').addEventListener('click',testMic);
 $('#admin').addEventListener('change',async e=>{const el=e.target;
   if(el.id==='camSel'){S.cameraId=el.value;S.cameraLabel=el.value?el.selectedOptions[0].textContent:'';saveSettings();camStatus('Starting the camera…');if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}$('#canonSet').innerHTML='';startCamera();loadCanonSettings()}});
+$('#printBtnChk').addEventListener('change',e=>{S.ui.share.btn.print=e.target.checked;saveSettings()});
 $('#autoPrintChk').addEventListener('change',e=>{S.ui.share.autoPrint=e.target.checked;saveSettings();
   if(e.target.checked&&canDirect()&&S.printMode!=='dialog'&&!printerCfgs().some(c=>c.on))toast('Add a printer below so auto-print has somewhere to print')});
 /* ---- Settings: your fonts ---- */
@@ -4546,6 +4706,8 @@ $('#prList').addEventListener('change',e=>{const el=e.target,card=el.closest('.p
   else if(/^cal[xys]$/.test(f)){c.cal=Object.assign(calOf(c),{[f[3]]:Number(el.value)||(f==='cals'?100:0)});c.cal=calOf(c);el.value=c.cal[f[3]];
     const sum=card.querySelector('[data-calfor] summary');if(sum){const t=document.createElement('div');t.innerHTML=calUi(c,pinfo(c.name));sum.textContent=t.querySelector('summary').textContent}}
   saveSettings();if(f==='on'||f==='size')renderPrinting()});
+$('#prList').addEventListener('input',e=>{const el=e.target;if(el.type==='range'&&/^cal[xys]$/.test(el.dataset.pf)){const o=el.closest('.slr').querySelector('output');if(o)o.textContent=calTxt(el.dataset.pf,el.value)}}); /* the number follows the slider while it moves; it is saved when released (change) */
+$('#prList').addEventListener('click',e=>{const n=e.target.closest('[data-nudge]');if(!n)return;const s=n.closest('.slr').querySelector('input[type=range]'),v=Math.round((+s.value+ +n.dataset.d)*10)/10;s.value=Math.min(+s.max,Math.max(+s.min,v));s.dispatchEvent(new Event('input',{bubbles:true}));s.dispatchEvent(new Event('change',{bubbles:true}))});
 $('#prList').addEventListener('toggle',e=>{const d=e.target;if(d.dataset&&d.dataset.calfor!=null){d.open?CAL_OPEN.add(d.dataset.calfor):CAL_OPEN.delete(d.dataset.calfor)}},true);
 $('#prList').addEventListener('click',async e=>{const b=e.target.closest('[data-pa]');if(!b)return;const card=b.closest('.prc'),i=+card.dataset.i,c=printerCfgs()[i];if(!c)return;
   if(b.dataset.pa==='remove'){printerCfgs().splice(i,1);saveSettings();renderPrinting()}
@@ -4598,7 +4760,7 @@ const MX=mk(4,4).getContext('2d');
 const EL_LABEL={text:'Text',line:'Line',logo:'Logo',qr:'QR code',sticker:'Sticker'};
 const ELICON={text:'T',line:'—',logo:'◎',qr:'▦',sticker:'★',slot:'▢'};
 const edT=()=>getTpl(ED.m);
-const isPhoto=()=>PHOTO_MODES.includes(TM(ED.m));
+const isPhoto=()=>PRINT_MODES.includes(ED.m);
 const edWrap=$('#edWrap');
 let edSaveT;const commit=()=>{clearTimeout(edSaveT);edSaveT=setTimeout(saveSettings,250)};
 function snapshot(){ED.undo.push(JSON.stringify(edT()));if(ED.undo.length>50)ED.undo.shift();$('#edUndo').disabled=false}
@@ -4837,7 +4999,7 @@ const dataURLToBlob=async u=>{const m=/^data:([^;,]*)(;base64)?,(.*)$/s.exec(u);
 function saveFile(blob,name){const a=document.createElement('a'),u=URL.createObjectURL(blob);a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),5000)}
 const stamp=()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}`};
 async function packAssets(keys){const out={};for(const k of keys){try{const b=await idb.get(k);if(b)out[k]=await blobToDataURL(b)}catch(e){}}return out}
-const KIND=m=>PHOTO_MODES.includes(TM(m))?'photo':m;
+const KIND=m=>PRINT_MODES.includes(m)?'photo':m;
 async function exportDesign(m,T){
   const keys=tplAssetKeys(T);if(T.els.some(e=>e.type==='logo'))keys.push('logo');
   const data={app:'lepetique',type:'design',version:4,kind:KIND(m),mode:m,design:T,assets:await packAssets(keys)};
@@ -4889,7 +5051,7 @@ function findHoles(img){
   out.sort((a,b)=>Math.abs(a.y-b.y)>.04?a.y-b.y:a.x-b.x);return out.slice(0,8);
 }
 async function importOwnDesign(f){
-  if(!isPhoto()){toast('Open the Photo strip, Grid or Single tab first');return}
+  if(!isPhoto()){toast('Open the Photo strip or Scribble tab first');return}
   const img=await blobImgOnce(f),ar=img.width/img.height;let best=null;
   for(const [k,z] of Object.entries(SIZES)){const dd=Math.abs(Math.log(z.w/z.h/ar));if(!best||dd<best.d)best={k,d:dd}}
   if(best.k!==edT().size)setPaper(best.k);
@@ -5124,9 +5286,10 @@ function dzSections(tab){
       {t:'hint',l:'Shown when a session also makes a GIF or live photo (Settings → Modes → Photo extras).'}]],
     ['QR code',[{t:'text',k:'qrText',l:'Text under the QR code'},{t:'range',k:'ui.share.qrSize',l:'QR code size',min:120,max:360,u:'px'},
       {t:'hint',l:'Choose how guests download (online or local Wi-Fi) in Settings → Sharing.'}]],
-    ['Buttons',['print','save','share','retake'].flatMap(b=>[{t:'check',k:`ui.share.btn.${b}`,l:`Show “${({print:'Print',save:'Save to device',share:'Share',retake:'Go again'})[b]}”`,half:true},
+    ['Buttons',['print','save','share','retake'].flatMap(b=>b==='print'?[{t:'text',k:'ui.share.labels.print',l:'“Print” button label'},{t:'hint',l:'Whether the Print button shows, and automatic printing, are set in one place: Settings → Printing.'}]
+      :[{t:'check',k:`ui.share.btn.${b}`,l:`Show “${({save:'Save to device',share:'Share',retake:'Go again'})[b]}”`,half:true},
       {t:'text',k:`ui.share.labels.${b}`,l:'Label',half:true}]).concat([{t:'text',k:'ui.share.labels.done',l:'Finish button'}])],
-    ['Automatic',[{t:'check',k:'ui.share.autoPrint',l:'Print automatically after each photo session'},
+    ['Automatic',[
       {t:'range',k:'ui.share.returnAfter',l:'Go back to the start screen after (seconds)',min:0,max:300,step:5},{t:'hint',l:'0 uses the idle time from Settings, with at least 75 seconds while a QR code is showing.'}]]];
   return[
     ['Quick looks',[{t:'themes'}]],
@@ -5213,7 +5376,7 @@ function cardPanel(cur,it){
   const cur=DZ.sel&&DZ.sel.kind==='mv'&&DZ.sel.screen===k?DZ.sel.key:null,it=cur?(L.items||{})[cur]||{}:null,caps=cur?mvCaps(cur):'',fallback=(v,d)=>v||d;
   let h=`<section><h3>Items on this screen <small>${L.free?'free placement':'automatic placement'}</small></h3>
     <p class="hint"><b>Drag anything on the screen to move it.</b> Tap an item (here or on the screen) to resize, hide or restyle just that item.</p>
-    <div class="mvchips">${keys.map(x=>`<button class="chip" data-mvsel="${x}" aria-pressed="${x===cur}">${esc(mvName(x))}${(L.items||{})[x]&&L.items[x].hide?' · hidden':''}${(L.items||{})[x]&&L.items[x].lock?' 🔒':''}</button>`).join('')}</div>`;
+    <div class="mvchips"><button class="chip" data-dzbg="1" aria-pressed="false">Background</button>${keys.map(x=>`<button class="chip" data-mvsel="${x}" aria-pressed="${x===cur}">${esc(mvName(x))}${(L.items||{})[x]&&L.items[x].hide?' · hidden':''}${(L.items||{})[x]&&L.items[x].lock?' 🔒':''}</button>`).join('')}</div>`;
   if(cur){const T=S.ui.theme;
     h+=`<h3>${esc(mvName(cur))}</h3>${rng('Size','data-mvp="s"',+it.s||1,.3,3,.05,'×')}
       ${caps.includes('f')?`<label>Font<select data-mvp="font"><option value="">Theme font</option>${Object.keys(FONTS).map(f=>`<option ${f===it.font?'selected':''}>${f}</option>`).join('')}</select></label>`:''}
@@ -5232,9 +5395,19 @@ function cardPanel(cur,it){
   h+=`<div class="btnrow"><button class="mini" data-mvact="auto" ${L.free?'':'disabled'}>Put everything back in place</button></div></section>`;
   return h;
 }
-function dzPanel(){const keep=$('#dzPanel').scrollTop;$('#dzPanel').innerHTML=itemsSection()+decoSection()+dzSections(DZ.tab).map(([t,fs])=>`<section><h3>${t}</h3>${fs.filter(f=>!f.if||f.if()).map(dzField).join('')}</section>`).join('');$('#dzPanel').scrollTop=keep}
+/* The screen's own look (its background) comes FIRST, so it is never hidden below the item lists and you don't scroll up and down for it. */
+function dzPanel(){const keep=$('#dzPanel').scrollTop,sec=([t,fs],i)=>`<section${i===0?' id="dzBgSec"':''}><h3>${t}</h3>${fs.filter(f=>!f.if||f.if()).map(dzField).join('')}</section>`,all=dzSections(DZ.tab).map((s,i)=>sec(s,i));
+  $('#dzPanel').innerHTML=(all[0]||'')+itemsSection()+decoSection()+all.slice(1).join('');$('#dzPanel').scrollTop=keep}
+/* tapping empty screen, or the Background chip: show the background settings (they are at the top) and flash them */
+function dzShowBg(){const s=$('#dzBgSec');if(!s)return;$('#dzPanel').scrollTop=0;s.classList.remove('dzflash');void s.offsetWidth;s.classList.add('dzflash')}
+document.addEventListener('pointerdown',ev=>{
+  if(!document.body.classList.contains('designing'))return;
+  if(ev.target.closest('#designer,[data-deco],[data-mv],.overlay,.ed,dialog,#toast'))return;
+  const r=$('#app').getBoundingClientRect();if(ev.clientX<r.left||ev.clientX>r.right||ev.clientY<r.top||ev.clientY>r.bottom)return;
+  DZ.sel=null;dzPanel();renderDeco();markMv();dzShowBg();
+});
 async function makeSample(){
-  const m=enabledModes().find(x=>PHOTO_MODES.includes(x))||'strip',c=renderTpl(m,[],{qrUrl:'https://example.com/your-photo'});
+  const m=enabledModes().find(x=>PRINT_MODES.includes(x))||'strip',c=renderTpl(m,[],{qrUrl:'https://example.com/your-photo'});
   return{id:'sample',t:Date.now(),mode:m,kind:'photo',blob:await toBlob(c,'image/jpeg',.85),qrUrl:'https://example.com/your-photo',sample:true};
 }
 async function dzPreview(){
@@ -5295,6 +5468,7 @@ $('#dzPanel').addEventListener('input',e=>{const el=e.target,w=el.dataset.cardte
 $('#dzPanel').addEventListener('change',async e=>{const el=e.target,k=el.dataset.mvpic;if(!k||!el.files||!el.files[0])return;if(await setAsset(k,el.files[0])){renderModes();dzPanel()}},true);
 $('#dzPanel').addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;const d=b.dataset;
   if(b.id==='dzClearType'){Object.assign(S.ui.theme,{headInk:'',btn2Bg:'',btn2Ink:''});return dzChanged(true)}
+  if(d.dzbg){DZ.sel=null;dzPanel();renderDeco();markMv();return dzShowBg()}
   if(d.mvsel){DZ.sel={kind:'mv',screen:DZ.tab,key:d.mvsel};return dzChanged(true)}
   if(d.mvact){const L=layoutOf(DZ.tab);
     if(d.mvact==='auto'){L.free=false;Object.values(L.items||{}).forEach(it=>{delete it.x;delete it.y;if(it.wAuto){delete it.w;delete it.wAuto}})}
@@ -5470,7 +5644,7 @@ async function designDown(c){
         for(const k of evPicKeys()){try{const b=await idb.get(picKey(eid,k));if(b)await idb.set(`ev_${bid}:${k}`,b)}catch(x){}}}
       rec.assets=await designDownload(c,eid,row.assets,rec.assets);
       for(const k of evPicKeys()){if(!(row.assets||{})[k]){try{await idb.del(picKey(eid,k))}catch(x){}delete (rec.assets||{})[k]}}
-      const d=row.data||{};
+      const d=dropGridSingle(row.data||{}); /* an old web version may still carry Grid and Single designs */
       (d.customFonts||[]).forEach(f=>{if(!S.customFonts.some(o=>o.id===f.id)&&row.assets&&row.assets['font_'+f.id])S.customFonts.push(f)});
       const target=cur?S:e.data;
       DESIGN_KEYS.forEach(k=>{if(k!=='modes'&&d[k]!==undefined)target[k]=clone(d[k])});
@@ -5605,7 +5779,7 @@ if(LP_WEB){
       await idb.wipe();Object.keys(assets).forEach(k=>delete assets[k]);
       EVENT_KEYS.forEach(k=>{delete S[k];if(k in DEF)S[k]=clone(DEF[k])});
       S.tpls={};S.tplSel={};S.tpl={};S.ui=deepMerge(DEF_UI,{});
-      DESIGN_KEYS.forEach(k=>{if(d[k]!==undefined)S[k]=clone(d[k])});
+      dropGridSingle(d);DESIGN_KEYS.forEach(k=>{if(d[k]!==undefined)S[k]=clone(d[k])});
       S.ui=deepMerge(DEF_UI,S.ui);S.modes=Object.assign({},DEF.modes,S.modes||{});S.tpl=isObj(S.tpl)?S.tpl:{};S.tpls=isObj(S.tpls)?S.tpls:{};S.tplSel=isObj(S.tplSel)?S.tplSel:{};
       S.customFonts=clone(d.customFonts||[]);S.eventId=eid;
       S.events={[eid]:{id:eid,name:row.name||S.eventName,created:Date.now(),data:{},stats:{sessions:0,byMode:{},prints:0}}};

@@ -166,7 +166,7 @@ const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}},del(k){try{localStorage.removeItem(k)}catch(e){}}};
 const sess={get(k){try{return sessionStorage.getItem(k)}catch(e){return null}},set(k,v){try{sessionStorage.setItem(k,v)}catch(e){}},del(k){try{sessionStorage.removeItem(k)}catch(e){}}};
-const MODE_NAMES={strip:'Photo strip',grid:'Grid',single:'Single',gif:'GIF',boom:'Boomerang',scribble:'Scribble'};
+const MODE_NAMES={strip:'Photo strip',grid:'Grid',single:'Single',gif:'GIF',boom:'Boomerang',scribble:'Scribble',video:'Video message'}; /* grid and single stay so that old sessions keep their names */
 const modeName=m=>MODE_NAMES[m]||(m?m[0].toUpperCase()+m.slice(1):'Unknown');
 const STEPS={ready:'Camera screen',work:'Making the photo',review:'Results',attract:'Start screen',pick:'Choosing a mode',design:'Choosing a design',unknown:'Unknown'};
 
