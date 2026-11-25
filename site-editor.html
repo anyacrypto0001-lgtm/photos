@@ -49,6 +49,10 @@ section h3{margin:0;font-size:16px;display:flex;justify-content:space-between;al
 .presets i{display:flex;height:16px;border-radius:5px;overflow:hidden}.presets b{flex:1}
 .filebtn{position:relative;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:10px;padding:8px 14px;min-height:40px;background:var(--bg);cursor:pointer}
 .filebtn input{position:absolute;width:1px;height:1px;opacity:0}
+.grip{cursor:grab;touch-action:none;-webkit-user-select:none;user-select:none;padding:4px 10px;border:1px dashed var(--line);border-radius:8px;font-size:13px;color:var(--mute);display:inline-flex;align-items:center;min-height:34px}
+.item.dragging{position:relative;z-index:6;opacity:.93;box-shadow:0 12px 32px rgba(0,0,0,.55);background:var(--panel);cursor:grabbing}
+.dbefore{box-shadow:0 -4px 0 0 var(--a)}.dafter{box-shadow:0 4px 0 0 var(--a)}
+.gal .dbefore{box-shadow:-5px 0 0 0 var(--a)}.gal .dafter{box-shadow:5px 0 0 0 var(--a)}
 .enq{display:grid;gap:4px}.enq.new{border-color:var(--a)}.enq small{color:var(--mute)}.enq p{margin:4px 0;white-space:pre-wrap}
 #toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 20px;border-radius:999px;font-weight:600;opacity:0;pointer-events:none;transition:.25s;z-index:9}
 #toast.on{opacity:1}
@@ -87,23 +91,26 @@ var store={get:function(k){try{return localStorage.getItem(k)}catch(e){return nu
 /* the sample content: the same as in index.html, so a brand-new site starts from it */
 var DEFAULT={
   brand:{name:'Le Petique Photobooth',logo:''},
-  look:{accent:'#ff5a7a',bg:'#141014',panel:'#221a22',ink:'#fbf5ef',mute:'#bcaeb7',headFont:'Playfair Display',bodyFont:'Outfit'},
+  look:{accent:'#ff5a7a',bg:'#141014',panel:'#221a22',ink:'#fbf5ef',mute:'#bcaeb7',headFont:'Playfair Display',bodyFont:'Outfit',anim:{mode:'fade',speed:'normal',banner:true,zoom:false,hover:true}},
   hero:{title:'Little moments, beautifully kept',sub:'A photobooth for weddings, parties and brand events. Photo strips, GIFs, boomerangs and video messages, shared to every guest by QR code.',image:'',cta:'Ask for a quote'},
   about:{title:'About us',text:''},
   packages:[
     {id:'p1',name:'Classic strip',price:'',per:'',desc:'Printed photo strips guests take home.',items:['Unlimited sessions','Printed strips','Online gallery for guests'],popular:false},
     {id:'p2',name:'Full experience',price:'',per:'',desc:'Strips, GIFs, boomerangs and video messages.',items:['Everything in Classic','GIFs and boomerangs','Video message guest book','Custom design'],popular:true}],
-  gallery:[],reviews:[],faq:[],
+  gallery:[],galleryOpts:{style:'grid',secs:4},reviews:[],faq:[],
   socials:{instagram:'',tiktok:'',facebook:'',youtube:'',whatsapp:'',email:''},
+  qr:{title:'Scan to follow us',intro:'Point your phone camera at a code to find us.',dark:'#000000',light:'#ffffff',use:{instagram:true,tiktok:true,facebook:true,youtube:true,whatsapp:true,email:true}},
   contact:{title:'Get in touch',intro:'Tell us about your event and we will get back to you.'},
   seo:{title:'',description:'',image:''},
-  sections:[{k:'hero',on:true},{k:'about',on:true},{k:'packages',on:true},{k:'gallery',on:true},{k:'reviews',on:true},{k:'faq',on:true},{k:'contact',on:true}]
+  sections:[{k:'hero',on:true},{k:'about',on:true},{k:'packages',on:true},{k:'gallery',on:true},{k:'reviews',on:true},{k:'faq',on:true},{k:'contact',on:true},{k:'qr',on:true}]
 };
-var SECTION_NAMES={hero:'Top banner',about:'About us',packages:'Packages',gallery:'Gallery',reviews:'Reviews',faq:'Questions',contact:'Contact form'};
+var SECTION_NAMES={hero:'Top banner',about:'About us',packages:'Packages',gallery:'Gallery',reviews:'Reviews',faq:'Questions',contact:'Contact form',qr:'Socials QR codes'};
+/* a site saved before a section existed gets it added at the end, so nothing the owner set is lost */
+function fixSections(c){var have={};(c.sections||[]).forEach(function(s){have[s.k]=1});c.sections=(c.sections||[]).slice();DEFAULT.sections.forEach(function(s){if(!have[s.k])c.sections.push({k:s.k,on:s.on})});return c}
 var LOOKS={plum:['Plum night','#141014','#221a22','#fbf5ef','#bcaeb7','#ff5a7a'],cream:['Cream','#f7f1e8','#ffffff','#2a2024','#7d6f74','#c8405a'],gold:['Midnight gold','#0f1220','#1b1f33','#f4ede0','#a9a7b5','#d4a64a'],
   blush:['Blush','#f8e3e1','#fff5f3','#4b2230','#8f6470','#c9566f'],sunny:['Sunny','#ffd23f','#fff3c4','#1a1a1a','#5b5340','#1a1a1a'],mono:['Mono','#0d0d0d','#1c1c1c','#ffffff','#9a9a9a','#ffffff']};
 var HEADS=['Playfair Display','DM Serif Display','Fraunces','Cormorant Garamond','Outfit','Poppins','Montserrat'],BODIES=['Outfit','Inter','Poppins','DM Sans','Nunito'];
-var TABS=[['look','Look'],['hero','Top banner'],['about','About'],['packages','Packages'],['gallery','Gallery'],['reviews','Reviews'],['faq','Questions'],['contact','Contact & socials'],['sections','Sections'],['seo','Search & sharing'],['enq','Enquiries']];
+var TABS=[['look','Look'],['hero','Top banner'],['about','About'],['packages','Packages'],['gallery','Gallery'],['reviews','Reviews'],['faq','Questions'],['contact','Contact & socials'],['qr','QR codes'],['sections','Sections'],['seo','Search & sharing'],['enq','Enquiries']];
 
 var CFG={},AUTH=null,D=null,SAVED='',tab='look',enq=null,newEnq=0,pvReady=false;
 try{CFG=JSON.parse(store.get('an.cfg')||'{}')||{}}catch(e){CFG={}}
@@ -159,7 +166,7 @@ async function enter(){
     var me=await rpc('staff_me');
     if(!me||me.role!=='owner'){showLogin('Only owners can edit the website. Ask an owner to change it, or to make you an owner on the analytics page (People tab).');return} /* the shared sign-in is kept: the analytics page still works for a manager */
     $('#who').textContent=me.email;
-    D=merge(DEFAULT,await rpc('site_get'));SAVED=JSON.stringify(D);
+    D=fixSections(merge(DEFAULT,await rpc('site_get')));SAVED=JSON.stringify(D);
     $('#login').hidden=true;$('#app').hidden=false;drawTabs();draw();dirty();
     rpc('enquiries_list').then(function(l){enq=l;newEnq=l.filter(function(x){return!x.seen}).length;drawTabs()}).catch(function(){})
   }catch(e){showLogin(niceErr(e))}}
@@ -197,9 +204,11 @@ var f={
   color:function(p,l){return'<label>'+l+'<input type="color" data-p="'+p+'" value="'+esc(getP(p))+'"></label>'},
   chk:function(p,l){return'<label class="chk"><input type="checkbox" data-p="'+p+'"'+(getP(p)?' checked':'')+'> '+l+'</label>'},
   sel:function(p,l,o){return'<label>'+l+'<select data-p="'+p+'">'+o.map(function(x){return'<option'+(String(x)===String(getP(p))?' selected':'')+'>'+esc(x)+'</option>'}).join('')+'</select></label>'},
+  selv:function(p,l,o){return'<label>'+l+'<select data-p="'+p+'">'+o.map(function(x){return'<option value="'+esc(x[0])+'"'+(String(x[0])===String(getP(p))?' selected':'')+'>'+esc(x[1])+'</option>'}).join('')+'</select></label>'},
   lines:function(p,l){return'<label>'+l+' <small>(one per line)</small><textarea data-lines="'+p+'" rows="4">'+esc((getP(p)||[]).join('\n'))+'</textarea></label>'},
   img:function(p,l){var u=getP(p);return'<div class="thumb">'+(u?'<img src="'+esc(u)+'" alt="">':'')+'<label class="filebtn">'+(u?'Change ':'Add ')+l+'<input type="file" accept="image/*" data-up="'+p+'"></label>'+(u?'<button type="button" data-rmimg="'+p+'">Remove</button>':'')+'</div>'},
-  tools:function(arr,i,n){return'<div class="tools"><button type="button" data-mv="'+arr+':'+i+':-1"'+(i?'':' disabled')+'>↑ Up</button><button type="button" data-mv="'+arr+':'+i+':1"'+(i<n-1?'':' disabled')+'>↓ Down</button><button type="button" class="danger" data-del="'+arr+':'+i+'">Delete</button></div>'}
+  grip:'<span class="grip" title="Drag to reorder" aria-label="Drag to reorder">⠿ Drag</span>',
+  tools:function(arr,i,n){return'<div class="tools">'+f.grip+'<button type="button" data-mv="'+arr+':'+i+':-1"'+(i?'':' disabled')+'>↑ Up</button><button type="button" data-mv="'+arr+':'+i+':1"'+(i<n-1?'':' disabled')+'>↓ Down</button><button type="button" class="danger" data-del="'+arr+':'+i+'">Delete</button></div>'}
 };
 function sec(t,body,extra){return'<section><h3>'+t+(extra||'')+'</h3>'+body+'</section>'}
 var VIEW={
@@ -207,28 +216,42 @@ var VIEW={
       '<div class="presets">'+Object.keys(LOOKS).map(function(k){var l=LOOKS[k];return'<button type="button" data-look="'+k+'"><i><b style="background:'+l[1]+'"></b><b style="background:'+l[2]+'"></b><b style="background:'+l[5]+'"></b></i>'+l[0]+'</button>'}).join('')+'</div>'+
       '<div class="row2">'+f.color('look.bg','Background')+f.color('look.panel','Cards')+f.color('look.ink','Text')+f.color('look.mute','Soft text')+'</div>'+f.color('look.accent','Buttons and highlights'))+
     sec('Fonts','<div class="row2">'+f.sel('look.headFont','Headings',HEADS)+f.sel('look.bodyFont','Everyday text',BODIES)+'</div><p class="hint">Free web fonts. (Your licensed fonts, like Slight, are for the booth only: they may not be used on a public website.)</p>')+
+    sec('Animations','<div class="row2">'+f.selv('look.anim.mode','Sections appear',[['none','Not animated'],['fade','Fade in'],['up','Slide up'],['sides','Slide in from the sides']])+f.selv('look.anim.speed','Speed',[['gentle','Gentle'],['normal','Normal'],['quick','Quick']])+'</div>'+
+      f.chk('look.anim.banner','Top banner: words slide in when the page opens')+f.chk('look.anim.zoom','Top banner: picture zooms in slowly')+f.chk('look.anim.hover','Hover effects (cards lift, gallery pictures zoom, buttons glow)')+
+      '<div class="tools"><button type="button" data-replay>▶ Replay in preview</button></div><p class="hint">Visitors whose phone or computer is set to reduce motion see no animations, whatever you choose here.</p>')+
     sec('Name and logo',f.text('brand.name','Business name')+f.img('brand.logo','logo')+'<p class="hint">The logo also becomes the little icon on the browser tab.</p>')},
   hero:function(){return sec('Top banner',f.text('hero.title','Big heading')+f.area('hero.sub','Line underneath',3)+f.text('hero.cta','Main button text')+f.img('hero.image','background picture'))},
   about:function(){return sec('About us',f.text('about.title','Heading')+f.area('about.text','Your story',8)+'<p class="hint">Leave this empty to hide the section.</p>')},
   packages:function(){var P=D.packages;return sec('Packages',P.map(function(p,i){var k='packages.'+i;
-      return'<div class="item">'+f.text(k+'.name','Name')+'<div class="row2">'+f.text(k+'.price','Price','e.g. £350 or From £350')+f.text(k+'.per','After the price','e.g. for 3 hours')+'</div>'+f.area(k+'.desc','Short description',2)+f.lines(k+'.items','What is included')+f.chk(k+'.popular','Mark as “Most popular”')+f.tools('packages',i,P.length)+'</div>'}).join('')+
+      return'<div class="item" data-di="packages:'+i+'">'+f.text(k+'.name','Name')+'<div class="row2">'+f.text(k+'.price','Price','e.g. £350 or From £350')+f.text(k+'.per','After the price','e.g. for 3 hours')+'</div>'+f.area(k+'.desc','Short description',2)+f.lines(k+'.items','What is included')+f.chk(k+'.popular','Mark as “Most popular”')+f.tools('packages',i,P.length)+'</div>'}).join('')+
     '<button type="button" data-add="packages">+ Add a package</button><p class="hint">Leave the price empty if you prefer people to ask for a quote.</p>')},
   gallery:function(){var G=D.gallery;return sec('Gallery <small class="hint">'+G.length+' pictures</small>',
-      '<label class="filebtn">+ Add pictures<input type="file" accept="image/*" multiple data-gal></label><p class="hint">Only add pictures you have permission to show (for example your own samples, or guests who agreed). Nothing from the booth is shown automatically.</p>'+
-      '<div class="gal">'+G.map(function(g,i){return'<div class="item"><img src="'+esc(g.url)+'" alt="">'+f.text('gallery.'+i+'.alt','Describe it')+f.tools('gallery',i,G.length)+'</div>'}).join('')+'</div>')},
+      '<div class="row2">'+f.selv('galleryOpts.style','Show as',[['grid','Grid of pictures'],['slide','Slideshow']])+f.selv('galleryOpts.secs','Slideshow: seconds per picture',[3,4,5,6,8,10].map(function(n){return[n,n+' seconds']}))+'</div>'+
+      '<label class="filebtn">+ Add pictures<input type="file" accept="image/*" multiple data-gal></label><p class="hint">Only add pictures you have permission to show (for example your own samples, or guests who agreed). Nothing from the booth is shown automatically. Drag a picture by its handle to change the order.</p>'+
+      '<div class="gal">'+G.map(function(g,i){return'<div class="item" data-di="gallery:'+i+'"><img src="'+esc(g.url)+'" alt="">'+f.text('gallery.'+i+'.alt','Describe it')+f.tools('gallery',i,G.length)+'</div>'}).join('')+'</div>')},
   reviews:function(){var R=D.reviews;return sec('Reviews',R.map(function(r,i){var k='reviews.'+i;
-      return'<div class="item">'+f.area(k+'.text','What they said',3)+'<div class="row2">'+f.text(k+'.name','Who')+f.sel(k+'.stars','Stars',['5','4','3'])+'</div>'+f.tools('reviews',i,R.length)+'</div>'}).join('')+'<button type="button" data-add="reviews">+ Add a review</button><p class="hint">Only add reviews people really gave you.</p>')},
+      return'<div class="item" data-di="reviews:'+i+'">'+f.area(k+'.text','What they said',3)+'<div class="row2">'+f.text(k+'.name','Who')+f.sel(k+'.stars','Stars',['5','4','3'])+'</div>'+f.tools('reviews',i,R.length)+'</div>'}).join('')+'<button type="button" data-add="reviews">+ Add a review</button><p class="hint">Only add reviews people really gave you.</p>')},
   faq:function(){var Q=D.faq;return sec('Questions',Q.map(function(q,i){var k='faq.'+i;
-      return'<div class="item">'+f.text(k+'.q','Question')+f.area(k+'.a','Answer',3)+f.tools('faq',i,Q.length)+'</div>'}).join('')+'<button type="button" data-add="faq">+ Add a question</button>')},
+      return'<div class="item" data-di="faq:'+i+'">'+f.text(k+'.q','Question')+f.area(k+'.a','Answer',3)+f.tools('faq',i,Q.length)+'</div>'}).join('')+'<button type="button" data-add="faq">+ Add a question</button>')},
   contact:function(){return sec('Contact form',f.text('contact.title','Heading')+f.area('contact.intro','Words above the form',2)+'<p class="hint">Messages from the form arrive in the <b>Enquiries</b> tab.</p>')+
     sec('Your links','<p class="hint">Leave blank to hide. Use a handle (@yourname) or the full web address.</p>'+f.text('socials.instagram','Instagram','@yourname')+f.text('socials.tiktok','TikTok','@yourname')+f.text('socials.facebook','Facebook page','page name or address')+f.text('socials.youtube','YouTube','@channel or address')+f.text('socials.whatsapp','WhatsApp number','with country code, e.g. 447700900000')+f.text('socials.email','Email address'))},
-  sections:function(){return sec('Sections','<p class="hint">Tick what to show and use the arrows to change the order.</p>'+D.sections.map(function(s,i){
-      return'<div class="item"><label class="chk"><input type="checkbox" data-secon="'+i+'"'+(s.on!==false?' checked':'')+'> '+esc(SECTION_NAMES[s.k]||s.k)+'</label>'+(s.k==='hero'?'':'<div class="tools"><button type="button" data-mv="sections:'+i+':-1"'+(i>1?'':' disabled')+'>↑ Up</button><button type="button" data-mv="sections:'+i+':1"'+(i<D.sections.length-1?'':' disabled')+'>↓ Down</button></div>')+'</div>'}).join(''))},
+  qr:function(){var Q=D.qr,names=[['instagram','Instagram'],['tiktok','TikTok'],['facebook','Facebook'],['youtube','YouTube'],['whatsapp','WhatsApp'],['email','Email']],
+      have=names.filter(function(n){return String(D.socials[n[0]]||'').trim()}).length;
+    return sec('Socials QR codes',f.text('qr.title','Heading')+f.area('qr.intro','Words above the codes',2)+
+      '<p class="hint">'+(have?'A code is made for each link you filled in under <b>Contact &amp; socials</b>. Untick the ones you do not want.':'No links yet: fill them in under <b>Contact &amp; socials</b> and the codes appear here and on the site.')+'</p>'+
+      names.map(function(n){return f.chk('qr.use.'+n[0],n[1]+(String(D.socials[n[0]]||'').trim()?'':' <small class="hint">(no link yet)</small>'))}).join(''))+
+    sec('QR colours','<div class="row2">'+f.color('qr.dark','Squares')+f.color('qr.light','Background')+'</div><p class="hint" id="qrWarn">'+qrWarn()+'</p>')},
+  sections:function(){return sec('Sections','<p class="hint">Tick what to show. Drag a section by its handle (or use the arrows) to change the order.</p>'+D.sections.map(function(s,i){
+      return'<div class="item"'+(s.k==='hero'?'':' data-di="sections:'+i+'"')+'><label class="chk"><input type="checkbox" data-secon="'+i+'"'+(s.on!==false?' checked':'')+'> '+esc(SECTION_NAMES[s.k]||s.k)+'</label>'+(s.k==='hero'?'':'<div class="tools">'+f.grip+'<button type="button" data-mv="sections:'+i+':-1"'+(i>1?'':' disabled')+'>↑ Up</button><button type="button" data-mv="sections:'+i+':1"'+(i<D.sections.length-1?'':' disabled')+'>↓ Down</button></div>')+'</div>'}).join(''))},
   seo:function(){return sec('Search and sharing',f.text('seo.title','Page title','shown on Google and the browser tab')+f.area('seo.description','Description',3)+f.img('seo.image','share picture')+'<p class="hint">The title, description and picture show when someone shares your link or finds you on Google.</p>')},
   enq:function(){if(!enq)return sec('Enquiries','<p class="hint">Loading…</p>');
     return sec('Enquiries <small class="hint">'+enq.length+' messages</small>',enq.length?enq.map(function(x,i){
       return'<div class="item enq'+(x.seen?'':' new')+'"><b>'+esc(x.name)+'</b><small>'+esc(new Date(x.ts).toLocaleString())+(x.date?' · event: '+esc(x.date):'')+'</small><a href="'+(/@/.test(x.contact)?'mailto:':'tel:')+esc(x.contact)+'">'+esc(x.contact)+'</a><p>'+esc(x.message||'')+'</p><div class="tools"><button type="button" data-seen="'+i+'">'+(x.seen?'Mark as new':'Mark as read')+'</button><button type="button" class="danger" data-enqdel="'+i+'">Delete</button></div></div>'}).join(''):'<p class="hint">Nothing yet. When someone fills in the contact form on your website, it appears here.</p>')}
 };
+/* phones need dark squares on a light background (or the other way round): warn when the two colours are too alike */
+function qrWarn(){var lum=function(h){h=String(h).replace('#','');var n=parseInt(h,16)||0,c=[n>>16&255,n>>8&255,n&255].map(function(v){v/=255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4)});return .2126*c[0]+.7152*c[1]+.0722*c[2]},
+  a=lum(D.qr.dark),b=lum(D.qr.light),r=(Math.max(a,b)+.05)/(Math.min(a,b)+.05);
+  return r<4?'<b style="color:var(--bad)">These two colours are too alike: phones may not be able to scan the codes.</b>':'Good contrast: phones will scan these easily. Dark squares on a light background works best.'}
 function drawTabs(){$('#tabs').innerHTML=TABS.map(function(t){return'<button class="tab" role="tab" data-tab="'+t[0]+'" aria-selected="'+(t[0]===tab)+'">'+t[1]+(t[0]==='enq'&&newEnq?'<span class="dot" title="'+newEnq+' new"></span>':'')+'</button>'}).join('')}
 function draw(){var el=$('#form'),keep=el.scrollTop;el.innerHTML=VIEW[tab]();
   if(tab==='enq'&&!enq)rpc('enquiries_list').then(function(l){enq=l;newEnq=l.filter(function(x){return!x.seen}).length;drawTabs();if(tab==='enq')draw()}).catch(function(e){toast(niceErr(e))});
@@ -237,7 +260,8 @@ $('#tabs').addEventListener('click',function(e){var b=e.target.closest('[data-ta
 
 /* typing updates the draft and the preview without redrawing the form (so the cursor stays put) */
 $('#form').addEventListener('input',function(e){var el=e.target,p=el.dataset.p;
-  if(p){var v=el.type==='checkbox'?el.checked:el.value;if(p.indexOf('.stars')>0)v=+v;setP(p,v);changed()}
+  if(p){var v=el.type==='checkbox'?el.checked:el.value;if(/\.(stars|secs)$/.test(p))v=+v;setP(p,v);changed();
+    if(p==='qr.dark'||p==='qr.light'){var w=$('#qrWarn');if(w)w.innerHTML=qrWarn()}}
   else if(el.dataset.lines){setP(el.dataset.lines,el.value.split('\n').map(function(s){return s.trim()}).filter(Boolean));changed()}
   else if(el.dataset.secon!=null){D.sections[+el.dataset.secon].on=el.checked;changed()}});
 $('#form').addEventListener('change',async function(e){var el=e.target;
@@ -246,11 +270,37 @@ $('#form').addEventListener('change',async function(e){var el=e.target;
 $('#form').addEventListener('click',async function(e){var b=e.target.closest('button');if(!b)return;var d=b.dataset;
   if(d.look){var l=LOOKS[d.look];Object.assign(D.look,{bg:l[1],panel:l[2],ink:l[3],mute:l[4],accent:l[5]});changed();return draw()}
   if(d.rmimg){setP(d.rmimg,'');changed();return draw()}
+  if(b.hasAttribute('data-replay')){var fr=$('#pv');pvReady&&fr.contentWindow&&fr.contentWindow.scrollTo(0,0);return push()} /* the page draws itself again, so the animations play again */
   if(d.add){var a=d.add;D[a].push(a==='packages'?{id:uid(),name:'New package',price:'',per:'',desc:'',items:[],popular:false}:a==='reviews'?{id:uid(),name:'',text:'',stars:5}:{id:uid(),q:'',a:''});changed();return draw()}
   if(d.del){var s=d.del.split(':');if(!confirm('Delete this?'))return;D[s[0]].splice(+s[1],1);changed();return draw()}
   if(d.mv){var m=d.mv.split(':'),arr=D[m[0]],i=+m[1],j=i+ +m[2];if(j<0||j>=arr.length||(m[0]==='sections'&&j<1))return;var t=arr[i];arr[i]=arr[j];arr[j]=t;changed();return draw()}
   if(d.seen!=null){var x=enq[+d.seen];try{await rpc('enquiry_mark',{p_id:x.id,p_seen:!x.seen});x.seen=!x.seen;newEnq=enq.filter(function(y){return!y.seen}).length;drawTabs();draw()}catch(er){toast(niceErr(er))}return}
   if(d.enqdel!=null){var y=enq[+d.enqdel];if(!confirm('Delete this message for good?'))return;try{await rpc('enquiry_delete',{p_id:y.id});enq.splice(+d.enqdel,1);newEnq=enq.filter(function(z){return!z.seen}).length;drawTabs();draw()}catch(er){toast(niceErr(er))}}});
+
+/* drag to reorder: the handle on each item (packages, gallery, reviews, questions, sections). Pointer events, so it works with a mouse and with touch. */
+$('#form').addEventListener('pointerdown',function(e){
+  var g=e.target.closest('.grip');if(!g||e.button>0)return;
+  var item=g.closest('[data-di]');if(!item)return;e.preventDefault();
+  var p=item.dataset.di.split(':'),key=p[0],from=+p[1],box=item.parentElement,form=$('#form'),x0=e.clientX,y0=e.clientY,to=from,
+    sibs=[].slice.call(box.querySelectorAll(':scope > [data-di^="'+key+':"]')).filter(function(s){return s!==item}),
+    left=item.getBoundingClientRect().left,vertical=sibs.every(function(s){return Math.abs(s.getBoundingClientRect().left-left)<3});
+  item.classList.add('dragging');try{g.setPointerCapture(e.pointerId)}catch(er){}
+  var clear=function(){sibs.forEach(function(s){s.classList.remove('dbefore','dafter')})},idx=function(s){return+s.dataset.di.split(':')[1]};
+  function move(ev){
+    item.style.transform='translate('+(ev.clientX-x0)+'px,'+(ev.clientY-y0)+'px)';
+    var r=form.getBoundingClientRect();if(ev.clientY<r.top+50)form.scrollTop-=14;else if(ev.clientY>r.bottom-50)form.scrollTop+=14;
+    var target=null;
+    sibs.forEach(function(s){if(target)return;var b=s.getBoundingClientRect(),
+      after=vertical?ev.clientY>b.top+b.height/2:(ev.clientY>b.bottom||(ev.clientY>=b.top&&ev.clientX>b.left+b.width/2));if(!after)target=s});
+    clear();if(!sibs.length)return;
+    if(target){target.classList.add('dbefore');to=idx(target)}else{sibs[sibs.length-1].classList.add('dafter');to=idx(sibs[sibs.length-1])+1}}
+  function up(){
+    removeEventListener('pointermove',move);removeEventListener('pointerup',up);removeEventListener('pointercancel',up);
+    clear();item.classList.remove('dragging');item.style.transform='';
+    var pos=to-(to>from?1:0); /* where it lands once it has been taken out of its old place */
+    if(sibs.length&&pos!==from){var arr=D[key],t=arr.splice(from,1)[0];arr.splice(pos,0,t);changed()}
+    draw()}
+  addEventListener('pointermove',move);addEventListener('pointerup',up);addEventListener('pointercancel',up)});
 
 /* a ready-made config.js for the public site (project address and public key only) */
 var dl=document.createElement('button');dl.textContent='Download config.js';dl.title='The website needs this file next to index.html, once';dl.addEventListener('click',function(){
