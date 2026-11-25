@@ -216,7 +216,7 @@ var R={
   about:function(){var a=C.about;if(!String(a.text||'').trim())return'';return'<section id="about" class="about"><div class="wrap"><h2>'+esc(a.title)+'</h2><p>'+esc(a.text)+'</p></div></section>'},
   packages:function(){var p=(C.packages||[]).filter(function(x){return x&&x.name});if(!p.length)return'';
     return'<section id="packages"><div class="wrap"><h2>Packages</h2><p class="lead">Every package includes a friendly attendant, setup and a gallery link for your guests.</p><div class="grid">'+p.map(function(x){
-      return'<div class="card'+(x.popular?' pop':'')+'">'+(x.popular?'<span class="tag">Most popular</span>':'')+'<h3>'+esc(x.name)+'</h3>'+(x.price?'<div class="price">'+esc(x.price)+(x.per?' <small>'+esc(x.per)+'</small>':'')+'</div>':'')+(x.desc?'<div class="mute">'+esc(x.desc)+'</div>':'')+((x.items||[]).length?'<ul>'+x.items.map(function(i){return'<li>'+esc(i)+'</li>'}).join('')+'</ul>':'')+(on('contact')?'<a class="btn'+(x.popular?'':' alt')+'" style="margin-top:auto;text-align:center" href="#contact" data-pk="'+esc(x.name)+'">Enquire</a>':'')+'</div>'}).join('')+'</div></div></section>'},
+      return'<div class="card'+(x.popular?' pop':'')+'">'+(x.popular?'<span class="tag">Most popular</span>':'')+'<h3>'+esc(x.name)+'</h3>'+(x.price?'<div class="price">'+esc(x.price)+(x.per?' <small>'+esc(x.per)+'</small>':'')+'</div>':'')+(x.desc?'<div class="mute">'+esc(x.desc)+'</div>':'')+((x.items||[]).length?'<ul>'+x.items.map(function(i){return'<li>'+esc(i)+'</li>'}).join('')+'</ul>':'')+(on('contact')?'<a class="btn'+(x.popular?'':' alt')+'" style="margin-top:auto;text-align:center" href="#contact" data-pk="'+esc(x.name)+'">Inquire</a>':'')+'</div>'}).join('')+'</div></div></section>'},
   gallery:function(){var g=(C.gallery||[]).filter(function(x){return x&&safeUrl(x.url)});if(!g.length)return'';
     if((C.galleryOpts||{}).style==='slide')return'<section id="gallery"><div class="wrap"><h2>Gallery</h2><div class="show" tabindex="0" role="group" aria-roledescription="carousel" aria-label="Gallery"><div class="track">'+g.map(function(x,i){return'<button type="button" class="slide" data-img="'+esc(safeUrl(x.url))+'" aria-label="'+esc(x.alt||'Photo '+(i+1)+' of '+g.length)+'"><img'+(i?' loading="lazy"':'')+' src="'+esc(safeUrl(x.url))+'" alt="'+esc(x.alt||'')+'" draggable="false"></button>'}).join('')+'</div>'+
       (g.length>1?'<button type="button" class="arr prev" aria-label="Previous photo">‹</button><button type="button" class="arr next" aria-label="Next photo">›</button><div class="dots">'+g.map(function(x,i){return'<button type="button" data-dot="'+i+'" aria-label="Photo '+(i+1)+'"></button>'}).join('')+'</div>':'')+'</div></div></section>';
@@ -285,7 +285,7 @@ function render(){
   meta('description',ds);meta('og:title',t,1);meta('og:description',ds,1);var im=safeUrl(C.seo.image);if(im)meta('og:image',im,1);
   var fav=safeUrl(C.brand.logo);if(fav){var l=$('link[rel=icon]')||document.head.appendChild(Object.assign(document.createElement('link'),{rel:'icon'}));l.href=fav}
 }
-/* gallery lightbox, package buttons fill in the enquiry */
+/* gallery lightbox, package buttons fill in the inquiry */
 document.addEventListener('click',function(e){
   var b=e.target.closest('[data-img]');if(b){if(SWIPED){SWIPED=false;return} /* a swipe on the slideshow is not a tap */$('#lbImg').src=b.dataset.img;$('#lb').hidden=false;return}
   if(e.target.closest('#lb')){$('#lb').hidden=true;return}
@@ -300,7 +300,7 @@ document.addEventListener('submit',function(e){
   if(PREVIEW){msg.className='msg ok';msg.textContent='(Preview) The message would be sent now.';return}
   if(!CFG.url||!CFG.key){ /* no project set up: use the visitor's own email app */
     var to=(C.socials.email||'').trim();if(!to){msg.className='msg bad';msg.textContent='Sorry, the form is not set up yet.';return}
-    location.href='mailto:'+to+'?subject='+encodeURIComponent('Enquiry from '+v('n'))+'&body='+encodeURIComponent(v('m')+'\n\nEvent date: '+v('d')+'\nContact: '+v('c'));return}
+    location.href='mailto:'+to+'?subject='+encodeURIComponent('Inquiry from '+v('n'))+'&body='+encodeURIComponent(v('m')+'\n\nEvent date: '+v('d')+'\nContact: '+v('c'));return}
   btn.disabled=true;msg.textContent='Sending…';
   fetch(CFG.url+'/rest/v1/rpc/enquiry_send',{method:'POST',headers:{apikey:CFG.key,Authorization:'Bearer '+CFG.key,'Content-Type':'application/json'},body:JSON.stringify({p_name:v('n'),p_contact:v('c'),p_date:v('d'),p_message:v('m')})})
    .then(function(r){return r.text().then(function(t){if(!r.ok)throw new Error(/too many/i.test(t)?'many':'fail');})})

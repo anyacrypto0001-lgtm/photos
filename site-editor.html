@@ -110,7 +110,7 @@ function fixSections(c){var have={};(c.sections||[]).forEach(function(s){have[s.
 var LOOKS={plum:['Plum night','#141014','#221a22','#fbf5ef','#bcaeb7','#ff5a7a'],cream:['Cream','#f7f1e8','#ffffff','#2a2024','#7d6f74','#c8405a'],gold:['Midnight gold','#0f1220','#1b1f33','#f4ede0','#a9a7b5','#d4a64a'],
   blush:['Blush','#f8e3e1','#fff5f3','#4b2230','#8f6470','#c9566f'],sunny:['Sunny','#ffd23f','#fff3c4','#1a1a1a','#5b5340','#1a1a1a'],mono:['Mono','#0d0d0d','#1c1c1c','#ffffff','#9a9a9a','#ffffff']};
 var HEADS=['Playfair Display','DM Serif Display','Fraunces','Cormorant Garamond','Outfit','Poppins','Montserrat'],BODIES=['Outfit','Inter','Poppins','DM Sans','Nunito'];
-var TABS=[['look','Look'],['hero','Top banner'],['about','About'],['packages','Packages'],['gallery','Gallery'],['reviews','Reviews'],['faq','Questions'],['contact','Contact & socials'],['qr','QR codes'],['sections','Sections'],['seo','Search & sharing'],['enq','Enquiries']];
+var TABS=[['look','Look'],['hero','Top banner'],['about','About'],['packages','Packages'],['gallery','Gallery'],['reviews','Reviews'],['faq','Questions'],['contact','Contact & socials'],['qr','QR codes'],['sections','Sections'],['seo','Search & sharing'],['enq','Inquiries']];
 
 var CFG={},AUTH=null,D=null,SAVED='',tab='look',enq=null,newEnq=0,pvReady=false;
 try{CFG=JSON.parse(store.get('an.cfg')||'{}')||{}}catch(e){CFG={}}
@@ -233,7 +233,7 @@ var VIEW={
       return'<div class="item" data-di="reviews:'+i+'">'+f.area(k+'.text','What they said',3)+'<div class="row2">'+f.text(k+'.name','Who')+f.sel(k+'.stars','Stars',['5','4','3'])+'</div>'+f.tools('reviews',i,R.length)+'</div>'}).join('')+'<button type="button" data-add="reviews">+ Add a review</button><p class="hint">Only add reviews people really gave you.</p>')},
   faq:function(){var Q=D.faq;return sec('Questions',Q.map(function(q,i){var k='faq.'+i;
       return'<div class="item" data-di="faq:'+i+'">'+f.text(k+'.q','Question')+f.area(k+'.a','Answer',3)+f.tools('faq',i,Q.length)+'</div>'}).join('')+'<button type="button" data-add="faq">+ Add a question</button>')},
-  contact:function(){return sec('Contact form',f.text('contact.title','Heading')+f.area('contact.intro','Words above the form',2)+'<p class="hint">Messages from the form arrive in the <b>Enquiries</b> tab.</p>')+
+  contact:function(){return sec('Contact form',f.text('contact.title','Heading')+f.area('contact.intro','Words above the form',2)+'<p class="hint">Messages from the form arrive in the <b>Inquiries</b> tab.</p>')+
     sec('Your links','<p class="hint">Leave blank to hide. Use a handle (@yourname) or the full web address.</p>'+f.text('socials.instagram','Instagram','@yourname')+f.text('socials.tiktok','TikTok','@yourname')+f.text('socials.facebook','Facebook page','page name or address')+f.text('socials.youtube','YouTube','@channel or address')+f.text('socials.whatsapp','WhatsApp number','with country code, e.g. 447700900000')+f.text('socials.email','Email address'))},
   qr:function(){var Q=D.qr,names=[['instagram','Instagram'],['tiktok','TikTok'],['facebook','Facebook'],['youtube','YouTube'],['whatsapp','WhatsApp'],['email','Email']],
       have=names.filter(function(n){return String(D.socials[n[0]]||'').trim()}).length;
@@ -244,8 +244,8 @@ var VIEW={
   sections:function(){return sec('Sections','<p class="hint">Tick what to show. Drag a section by its handle (or use the arrows) to change the order.</p>'+D.sections.map(function(s,i){
       return'<div class="item"'+(s.k==='hero'?'':' data-di="sections:'+i+'"')+'><label class="chk"><input type="checkbox" data-secon="'+i+'"'+(s.on!==false?' checked':'')+'> '+esc(SECTION_NAMES[s.k]||s.k)+'</label>'+(s.k==='hero'?'':'<div class="tools">'+f.grip+'<button type="button" data-mv="sections:'+i+':-1"'+(i>1?'':' disabled')+'>↑ Up</button><button type="button" data-mv="sections:'+i+':1"'+(i<D.sections.length-1?'':' disabled')+'>↓ Down</button></div>')+'</div>'}).join(''))},
   seo:function(){return sec('Search and sharing',f.text('seo.title','Page title','shown on Google and the browser tab')+f.area('seo.description','Description',3)+f.img('seo.image','share picture')+'<p class="hint">The title, description and picture show when someone shares your link or finds you on Google.</p>')},
-  enq:function(){if(!enq)return sec('Enquiries','<p class="hint">Loading…</p>');
-    return sec('Enquiries <small class="hint">'+enq.length+' messages</small>',enq.length?enq.map(function(x,i){
+  enq:function(){if(!enq)return sec('Inquiries','<p class="hint">Loading…</p>');
+    return sec('Inquiries <small class="hint">'+enq.length+' messages</small>',enq.length?enq.map(function(x,i){
       return'<div class="item enq'+(x.seen?'':' new')+'"><b>'+esc(x.name)+'</b><small>'+esc(new Date(x.ts).toLocaleString())+(x.date?' · event: '+esc(x.date):'')+'</small><a href="'+(/@/.test(x.contact)?'mailto:':'tel:')+esc(x.contact)+'">'+esc(x.contact)+'</a><p>'+esc(x.message||'')+'</p><div class="tools"><button type="button" data-seen="'+i+'">'+(x.seen?'Mark as new':'Mark as read')+'</button><button type="button" class="danger" data-enqdel="'+i+'">Delete</button></div></div>'}).join(''):'<p class="hint">Nothing yet. When someone fills in the contact form on your website, it appears here.</p>')}
 };
 /* phones need dark squares on a light background (or the other way round): warn when the two colours are too alike */
