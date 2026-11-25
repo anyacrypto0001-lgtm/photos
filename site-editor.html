@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Website editor</title>
+<!--
+  Le Petique website editor (owners only). Change the public website's words, prices, pictures, colours and links with a live
+  preview, then press Save: the site updates straight away, with nothing to re-upload. It signs in with the same Supabase
+  account as the analytics page (the sign-in is shared), and the database only lets owners save.
+-->
+<style>
+:root{--a:#ff5a7a;--bg:#141014;--panel:#221a22;--ink:#fbf5ef;--mute:#bcaeb7;--line:#3b2f3a;--bad:#ff8a8a;--good:#6fd98f}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+a{color:inherit;text-decoration:none}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:8px 14px;min-height:40px}
+button.go{background:var(--a);border-color:var(--a);color:#fff;font-weight:700}
+button.danger{color:var(--bad)}button:disabled{opacity:.45;cursor:default}
+input[type=text],input[type=email],input[type=password],input[type=url],select,textarea{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+input[type=color]{width:100%;height:40px;padding:2px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+textarea{resize:vertical}
+label{display:grid;gap:5px;font-size:13px;color:var(--mute)}label.chk{display:flex;align-items:center;gap:8px;font-size:15px;color:var(--ink)}
+.login{max-width:420px;margin:12vh auto;padding:0 18px;display:grid;gap:12px}.login h1{margin:0}
+.err{color:var(--bad);min-height:1.3em}
+#app{height:100%;display:flex;flex-direction:column}
+.bar{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.bar h1{margin:0;font-size:20px;margin-right:auto}
+.tabs{display:flex;gap:6px;padding:8px 14px;overflow-x:auto;border-bottom:1px solid var(--line)}
+.tab{border-radius:999px;white-space:nowrap;flex:none;position:relative}
+.tab[aria-selected=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.tab .dot{position:absolute;top:2px;right:4px;width:9px;height:9px;border-radius:50%;background:var(--a)}
+.body{flex:1;display:flex;min-height:0}
+#form{width:min(460px,46vw);overflow:auto;padding:14px;display:grid;gap:12px;align-content:start}
+#pv{flex:1;border:0;background:#fff;min-width:0}
+section{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;display:grid;gap:10px}
+section h3{margin:0;font-size:16px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.hint{color:var(--mute);font-size:13px;margin:0}
+.item{border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;gap:8px}
+.tools{display:flex;gap:6px;flex-wrap:wrap}.tools button{min-height:34px;padding:4px 10px;font-size:13px}
+.thumb{display:flex;align-items:center;gap:10px}.thumb img{width:64px;height:64px;object-fit:cover;border-radius:8px;background:var(--bg)}
+.gal{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px}
+.gal .item{padding:6px;gap:6px}.gal img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:8px}
+.presets{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.presets button{display:grid;gap:4px;font-size:13px}
+.presets i{display:flex;height:16px;border-radius:5px;overflow:hidden}.presets b{flex:1}
+.filebtn{position:relative;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:10px;padding:8px 14px;min-height:40px;background:var(--bg);cursor:pointer}
+.filebtn input{position:absolute;width:1px;height:1px;opacity:0}
+.enq{display:grid;gap:4px}.enq.new{border-color:var(--a)}.enq small{color:var(--mute)}.enq p{margin:4px 0;white-space:pre-wrap}
+#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 20px;border-radius:999px;font-weight:600;opacity:0;pointer-events:none;transition:.25s;z-index:9}
+#toast.on{opacity:1}
+.pvtab{display:none}
+@media(max-width:860px){.body{flex-direction:column}#form{width:100%;flex:1}#pv{flex:1;display:none}.body.showpv #form{display:none}.body.showpv #pv{display:block}.pvtab{display:inline-block}}
+</style>
+</head>
+<body>
+<div id="login" class="login" hidden>
+  <h1>Website editor</h1>
+  <p class="hint">Sign in with your own email and password (the same as the analytics page). Only owners can change the website.</p>
+  <div id="cfgBox" hidden>
+    <label>Project URL<input id="cUrl" type="text" placeholder="https://xxxx.supabase.co" autocomplete="off" spellcheck="false"></label>
+    <label>Publishable key<input id="cKey" type="text" placeholder="sb_publishable_…" autocomplete="off" spellcheck="false"></label>
+  </div>
+  <label>Email<input id="lMail" type="email" autocomplete="username"></label>
+  <label>Password<input id="lPass" type="password" autocomplete="current-password"></label>
+  <button class="go" id="lGo">Sign in</button>
+  <div class="err" id="lErr" role="alert"></div>
+</div>
+<div id="app" hidden>
+  <div class="bar"><h1>Website editor</h1><span class="hint" id="who"></span>
+    <button class="pvtab" id="pvTab">Preview</button><a href="index.html" target="_blank" rel="noopener"><button>Open site</button></a><a href="analytics.html"><button>Analytics</button></a>
+    <button class="go" id="save" disabled>Save</button></div>
+  <div class="tabs" id="tabs" role="tablist"></div>
+  <div class="body" id="body"><div id="form"></div><iframe id="pv" title="Live preview" src="index.html?preview"></iframe></div>
+</div>
+<div id="toast" role="status"></div>
+<script>
+(function(){
+'use strict';
+var $=function(s){return document.querySelector(s)};
+var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})};
+var store={get:function(k){try{return localStorage.getItem(k)}catch(e){return null}},set:function(k,v){try{localStorage.setItem(k,v)}catch(e){}},del:function(k){try{localStorage.removeItem(k)}catch(e){}}};
+/* the sample content: the same as in index.html, so a brand-new site starts from it */
+var DEFAULT={
+  brand:{name:'Le Petique Photobooth',logo:''},
+  look:{accent:'#ff5a7a',bg:'#141014',panel:'#221a22',ink:'#fbf5ef',mute:'#bcaeb7',headFont:'Playfair Display',bodyFont:'Outfit'},
+  hero:{title:'Little moments, beautifully kept',sub:'A photobooth for weddings, parties and brand events. Photo strips, GIFs, boomerangs and video messages, shared to every guest by QR code.',image:'',cta:'Ask for a quote'},
+  about:{title:'About us',text:''},
+  packages:[
+    {id:'p1',name:'Classic strip',price:'',per:'',desc:'Printed photo strips guests take home.',items:['Unlimited sessions','Printed strips','Online gallery for guests'],popular:false},
+    {id:'p2',name:'Full experience',price:'',per:'',desc:'Strips, GIFs, boomerangs and video messages.',items:['Everything in Classic','GIFs and boomerangs','Video message guest book','Custom design'],popular:true}],
+  gallery:[],reviews:[],faq:[],
+  socials:{instagram:'',tiktok:'',facebook:'',youtube:'',whatsapp:'',email:''},
+  contact:{title:'Get in touch',intro:'Tell us about your event and we will get back to you.'},
+  seo:{title:'',description:'',image:''},
+  sections:[{k:'hero',on:true},{k:'about',on:true},{k:'packages',on:true},{k:'gallery',on:true},{k:'reviews',on:true},{k:'faq',on:true},{k:'contact',on:true}]
+};
+var SECTION_NAMES={hero:'Top banner',about:'About us',packages:'Packages',gallery:'Gallery',reviews:'Reviews',faq:'Questions',contact:'Contact form'};
+var LOOKS={plum:['Plum night','#141014','#221a22','#fbf5ef','#bcaeb7','#ff5a7a'],cream:['Cream','#f7f1e8','#ffffff','#2a2024','#7d6f74','#c8405a'],gold:['Midnight gold','#0f1220','#1b1f33','#f4ede0','#a9a7b5','#d4a64a'],
+  blush:['Blush','#f8e3e1','#fff5f3','#4b2230','#8f6470','#c9566f'],sunny:['Sunny','#ffd23f','#fff3c4','#1a1a1a','#5b5340','#1a1a1a'],mono:['Mono','#0d0d0d','#1c1c1c','#ffffff','#9a9a9a','#ffffff']};
+var HEADS=['Playfair Display','DM Serif Display','Fraunces','Cormorant Garamond','Outfit','Poppins','Montserrat'],BODIES=['Outfit','Inter','Poppins','DM Sans','Nunito'];
+var TABS=[['look','Look'],['hero','Top banner'],['about','About'],['packages','Packages'],['gallery','Gallery'],['reviews','Reviews'],['faq','Questions'],['contact','Contact & socials'],['sections','Sections'],['seo','Search & sharing'],['enq','Enquiries']];
+
+var CFG={},AUTH=null,D=null,SAVED='',tab='look',enq=null,newEnq=0,pvReady=false;
+try{CFG=JSON.parse(store.get('an.cfg')||'{}')||{}}catch(e){CFG={}}
+function isObj(x){return x&&typeof x==='object'&&!Array.isArray(x)}
+function merge(a,b){var o={},k;for(k in a)o[k]=a[k];if(isObj(b))for(k in b){if(isObj(a[k])&&isObj(b[k]))o[k]=merge(a[k],b[k]);else if(b[k]!==undefined&&b[k]!==null)o[k]=b[k]}return o}
+var clone=function(x){return JSON.parse(JSON.stringify(x))};
+var uid=function(){return Math.random().toString(36).slice(2,9)};
+function toast(m){var t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(function(){t.classList.remove('on')},2400)}
+
+/* ---------- sign-in: the same Supabase session as the analytics page (an.auth) ---------- */
+var AUTHKEY='an.auth';
+function authLoad(){try{var a=JSON.parse(store.get(AUTHKEY)||'null');return a&&a.refresh?a:null}catch(e){return null}}
+function authSave(a){AUTH=a;if(a)store.set(AUTHKEY,JSON.stringify({access:a.access,refresh:a.refresh,exp:a.exp,email:a.email||''}));else store.del(AUTHKEY)}
+function authFrom(j){return{access:j.access_token,refresh:j.refresh_token,exp:Date.now()+(+j.expires_in||3600)*1000,email:(j.user&&j.user.email)||(AUTH&&AUTH.email)||''}}
+async function authCall(path,body){
+  var r=await fetch(CFG.url+'/auth/v1/'+path,{method:'POST',headers:{apikey:CFG.key,'Content-Type':'application/json'},body:JSON.stringify(body)});
+  var t=await r.text(),j=null;try{j=t?JSON.parse(t):null}catch(e){}
+  if(!r.ok){var m=(j&&(j.error_description||j.msg||j.message))||'HTTP '+r.status;throw new Error(/invalid login|invalid_grant|invalid credentials/i.test(m)?'login':m)}
+  return j}
+var refreshing=null;
+async function ensureToken(force){
+  if(!AUTH)throw new Error('pin');
+  if(!force&&AUTH.exp-Date.now()>60000)return AUTH.access;
+  if(!refreshing)refreshing=(async function(){try{authSave(authFrom(await authCall('token?grant_type=refresh_token',{refresh_token:AUTH.refresh})))}catch(e){authSave(null);throw new Error('pin')}finally{refreshing=null}})();
+  await refreshing;return AUTH.access}
+async function rpc(fn,body,retried){
+  var tok=await ensureToken();
+  var r=await fetch(CFG.url+'/rest/v1/rpc/'+fn,{method:'POST',headers:{apikey:CFG.key,Authorization:'Bearer '+tok,'Content-Type':'application/json'},body:JSON.stringify(body||{})});
+  if(!r.ok){
+    if(r.status===401&&!retried){await ensureToken(true);return rpc(fn,body,true)}
+    var t=await r.text().catch(function(){return''});
+    throw new Error(r.status===401?'pin':r.status===403||/not allowed/i.test(t)?'forbidden':/could not find the function|PGRST202/i.test(t)?'sql':(t.slice(0,160)||'HTTP '+r.status))}
+  var t2=await r.text();return t2?JSON.parse(t2):null}
+function niceErr(e){var m=e&&e.message||String(e);
+  return m==='forbidden'?'Only owners can do that.':m==='sql'?'Run the latest analytics.sql in Supabase first (SQL Editor), then try again.':m==='pin'?'Please sign in again.':m==='login'?'That email or password is not right.':m}
+
+/* ---------- start ---------- */
+function showLogin(msg){$('#app').hidden=true;$('#login').hidden=false;$('#cfgBox').hidden=!!(CFG.url&&CFG.key);$('#lErr').textContent=msg||'';var a=authLoad();if(a&&a.email&&!$('#lMail').value)$('#lMail').value=a.email}
+function readCfg(){
+  var u=$('#cUrl').value.trim().replace(/\/+$/,''),k=$('#cKey').value.trim();
+  if(!/^https:\/\/[a-z0-9]+\.supabase\.co$/i.test(u)||!k)return false;
+  CFG={url:u,key:k};store.set('an.cfg',JSON.stringify(CFG));return true}
+$('#lGo').addEventListener('click',async function(){
+  var err=$('#lErr');err.textContent='';
+  if(!$('#cfgBox').hidden&&!readCfg()){err.textContent='Enter the project URL and publishable key.';return}
+  try{authSave(authFrom(await authCall('token?grant_type=password',{email:$('#lMail').value.trim(),password:$('#lPass').value})));$('#lPass').value='';await enter()}
+  catch(e){err.textContent=niceErr(e)}});
+$('#lPass').addEventListener('keydown',function(e){if(e.key==='Enter')$('#lGo').click()});
+async function enter(){
+  try{
+    var me=await rpc('staff_me');
+    if(!me||me.role!=='owner'){showLogin('Only owners can edit the website. Ask an owner to change it, or to make you an owner on the analytics page (People tab).');return} /* the shared sign-in is kept: the analytics page still works for a manager */
+    $('#who').textContent=me.email;
+    D=merge(DEFAULT,await rpc('site_get'));SAVED=JSON.stringify(D);
+    $('#login').hidden=true;$('#app').hidden=false;drawTabs();draw();dirty();
+    rpc('enquiries_list').then(function(l){enq=l;newEnq=l.filter(function(x){return!x.seen}).length;drawTabs()}).catch(function(){})
+  }catch(e){showLogin(niceErr(e))}}
+
+/* ---------- preview and saving ---------- */
+function push(){var f=$('#pv');if(pvReady&&f.contentWindow)f.contentWindow.postMessage({lpSite:D},'*')}
+addEventListener('message',function(e){if(e.data&&e.data.lpSiteReady){pvReady=true;push()}});
+function dirty(){var d=JSON.stringify(D)!==SAVED;$('#save').disabled=!d;$('#save').textContent=d?'Save changes':'Saved'}
+function changed(){push();dirty()}
+$('#save').addEventListener('click',async function(){
+  var b=this;b.disabled=true;b.textContent='Saving…';
+  try{await rpc('site_save',{p_data:D});SAVED=JSON.stringify(D);toast('Saved: the website is up to date');}catch(e){toast(niceErr(e))}
+  dirty()});
+addEventListener('beforeunload',function(e){if(D&&JSON.stringify(D)!==SAVED){e.preventDefault();e.returnValue=''}});
+$('#pvTab').addEventListener('click',function(){var b=$('#body');b.classList.toggle('showpv');this.textContent=b.classList.contains('showpv')?'Edit':'Preview'});
+
+/* ---------- pictures: shrunk in the browser, then added to the public "site" bucket ---------- */
+function shrink(file,max){return new Promise(function(res,rej){
+  var url=URL.createObjectURL(file),im=new Image();
+  im.onload=function(){URL.revokeObjectURL(url);var k=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);
+    var x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);c.toBlob(function(b){b?res(b):rej(new Error('Could not read that picture'))},'image/jpeg',.86)};
+  im.onerror=function(){URL.revokeObjectURL(url);rej(new Error('Could not read that picture'))};im.src=url})}
+async function upload(file){
+  var blob=await shrink(file,1800),name=Date.now().toString(36)+'-'+uid()+'.jpg',tok=await ensureToken();
+  var r=await fetch(CFG.url+'/storage/v1/object/site/'+name,{method:'POST',headers:{apikey:CFG.key,Authorization:'Bearer '+tok,'Content-Type':'image/jpeg','x-upsert':'true'},body:blob});
+  if(!r.ok)throw new Error(r.status===403||r.status===401?'Run the latest analytics.sql in Supabase first (it creates the pictures folder).':'Upload failed ('+r.status+')');
+  return CFG.url+'/storage/v1/object/public/site/'+name}
+
+/* ---------- form building ---------- */
+function getP(p){return p.split('.').reduce(function(o,k){return o==null?undefined:o[k]},D)}
+function setP(p,v){var ks=p.split('.'),l=ks.pop(),o=D;ks.forEach(function(k){o=o[k]});o[l]=v}
+var f={
+  text:function(p,l,ph){return'<label>'+l+'<input type="text" data-p="'+p+'" value="'+esc(getP(p))+'"'+(ph?' placeholder="'+esc(ph)+'"':'')+'></label>'},
+  area:function(p,l,rows){return'<label>'+l+'<textarea data-p="'+p+'" rows="'+(rows||3)+'">'+esc(getP(p))+'</textarea></label>'},
+  color:function(p,l){return'<label>'+l+'<input type="color" data-p="'+p+'" value="'+esc(getP(p))+'"></label>'},
+  chk:function(p,l){return'<label class="chk"><input type="checkbox" data-p="'+p+'"'+(getP(p)?' checked':'')+'> '+l+'</label>'},
+  sel:function(p,l,o){return'<label>'+l+'<select data-p="'+p+'">'+o.map(function(x){return'<option'+(String(x)===String(getP(p))?' selected':'')+'>'+esc(x)+'</option>'}).join('')+'</select></label>'},
+  lines:function(p,l){return'<label>'+l+' <small>(one per line)</small><textarea data-lines="'+p+'" rows="4">'+esc((getP(p)||[]).join('\n'))+'</textarea></label>'},
+  img:function(p,l){var u=getP(p);return'<div class="thumb">'+(u?'<img src="'+esc(u)+'" alt="">':'')+'<label class="filebtn">'+(u?'Change ':'Add ')+l+'<input type="file" accept="image/*" data-up="'+p+'"></label>'+(u?'<button type="button" data-rmimg="'+p+'">Remove</button>':'')+'</div>'},
+  tools:function(arr,i,n){return'<div class="tools"><button type="button" data-mv="'+arr+':'+i+':-1"'+(i?'':' disabled')+'>↑ Up</button><button type="button" data-mv="'+arr+':'+i+':1"'+(i<n-1?'':' disabled')+'>↓ Down</button><button type="button" class="danger" data-del="'+arr+':'+i+'">Delete</button></div>'}
+};
+function sec(t,body,extra){return'<section><h3>'+t+(extra||'')+'</h3>'+body+'</section>'}
+var VIEW={
+  look:function(){return sec('Colours',
+      '<div class="presets">'+Object.keys(LOOKS).map(function(k){var l=LOOKS[k];return'<button type="button" data-look="'+k+'"><i><b style="background:'+l[1]+'"></b><b style="background:'+l[2]+'"></b><b style="background:'+l[5]+'"></b></i>'+l[0]+'</button>'}).join('')+'</div>'+
+      '<div class="row2">'+f.color('look.bg','Background')+f.color('look.panel','Cards')+f.color('look.ink','Text')+f.color('look.mute','Soft text')+'</div>'+f.color('look.accent','Buttons and highlights'))+
+    sec('Fonts','<div class="row2">'+f.sel('look.headFont','Headings',HEADS)+f.sel('look.bodyFont','Everyday text',BODIES)+'</div><p class="hint">Free web fonts. (Your licensed fonts, like Slight, are for the booth only: they may not be used on a public website.)</p>')+
+    sec('Name and logo',f.text('brand.name','Business name')+f.img('brand.logo','logo')+'<p class="hint">The logo also becomes the little icon on the browser tab.</p>')},
+  hero:function(){return sec('Top banner',f.text('hero.title','Big heading')+f.area('hero.sub','Line underneath',3)+f.text('hero.cta','Main button text')+f.img('hero.image','background picture'))},
+  about:function(){return sec('About us',f.text('about.title','Heading')+f.area('about.text','Your story',8)+'<p class="hint">Leave this empty to hide the section.</p>')},
+  packages:function(){var P=D.packages;return sec('Packages',P.map(function(p,i){var k='packages.'+i;
+      return'<div class="item">'+f.text(k+'.name','Name')+'<div class="row2">'+f.text(k+'.price','Price','e.g. £350 or From £350')+f.text(k+'.per','After the price','e.g. for 3 hours')+'</div>'+f.area(k+'.desc','Short description',2)+f.lines(k+'.items','What is included')+f.chk(k+'.popular','Mark as “Most popular”')+f.tools('packages',i,P.length)+'</div>'}).join('')+
+    '<button type="button" data-add="packages">+ Add a package</button><p class="hint">Leave the price empty if you prefer people to ask for a quote.</p>')},
+  gallery:function(){var G=D.gallery;return sec('Gallery <small class="hint">'+G.length+' pictures</small>',
+      '<label class="filebtn">+ Add pictures<input type="file" accept="image/*" multiple data-gal></label><p class="hint">Only add pictures you have permission to show (for example your own samples, or guests who agreed). Nothing from the booth is shown automatically.</p>'+
+      '<div class="gal">'+G.map(function(g,i){return'<div class="item"><img src="'+esc(g.url)+'" alt="">'+f.text('gallery.'+i+'.alt','Describe it')+f.tools('gallery',i,G.length)+'</div>'}).join('')+'</div>')},
+  reviews:function(){var R=D.reviews;return sec('Reviews',R.map(function(r,i){var k='reviews.'+i;
+      return'<div class="item">'+f.area(k+'.text','What they said',3)+'<div class="row2">'+f.text(k+'.name','Who')+f.sel(k+'.stars','Stars',['5','4','3'])+'</div>'+f.tools('reviews',i,R.length)+'</div>'}).join('')+'<button type="button" data-add="reviews">+ Add a review</button><p class="hint">Only add reviews people really gave you.</p>')},
+  faq:function(){var Q=D.faq;return sec('Questions',Q.map(function(q,i){var k='faq.'+i;
+      return'<div class="item">'+f.text(k+'.q','Question')+f.area(k+'.a','Answer',3)+f.tools('faq',i,Q.length)+'</div>'}).join('')+'<button type="button" data-add="faq">+ Add a question</button>')},
+  contact:function(){return sec('Contact form',f.text('contact.title','Heading')+f.area('contact.intro','Words above the form',2)+'<p class="hint">Messages from the form arrive in the <b>Enquiries</b> tab.</p>')+
+    sec('Your links','<p class="hint">Leave blank to hide. Use a handle (@yourname) or the full web address.</p>'+f.text('socials.instagram','Instagram','@yourname')+f.text('socials.tiktok','TikTok','@yourname')+f.text('socials.facebook','Facebook page','page name or address')+f.text('socials.youtube','YouTube','@channel or address')+f.text('socials.whatsapp','WhatsApp number','with country code, e.g. 447700900000')+f.text('socials.email','Email address'))},
+  sections:function(){return sec('Sections','<p class="hint">Tick what to show and use the arrows to change the order.</p>'+D.sections.map(function(s,i){
+      return'<div class="item"><label class="chk"><input type="checkbox" data-secon="'+i+'"'+(s.on!==false?' checked':'')+'> '+esc(SECTION_NAMES[s.k]||s.k)+'</label>'+(s.k==='hero'?'':'<div class="tools"><button type="button" data-mv="sections:'+i+':-1"'+(i>1?'':' disabled')+'>↑ Up</button><button type="button" data-mv="sections:'+i+':1"'+(i<D.sections.length-1?'':' disabled')+'>↓ Down</button></div>')+'</div>'}).join(''))},
+  seo:function(){return sec('Search and sharing',f.text('seo.title','Page title','shown on Google and the browser tab')+f.area('seo.description','Description',3)+f.img('seo.image','share picture')+'<p class="hint">The title, description and picture show when someone shares your link or finds you on Google.</p>')},
+  enq:function(){if(!enq)return sec('Enquiries','<p class="hint">Loading…</p>');
+    return sec('Enquiries <small class="hint">'+enq.length+' messages</small>',enq.length?enq.map(function(x,i){
+      return'<div class="item enq'+(x.seen?'':' new')+'"><b>'+esc(x.name)+'</b><small>'+esc(new Date(x.ts).toLocaleString())+(x.date?' · event: '+esc(x.date):'')+'</small><a href="'+(/@/.test(x.contact)?'mailto:':'tel:')+esc(x.contact)+'">'+esc(x.contact)+'</a><p>'+esc(x.message||'')+'</p><div class="tools"><button type="button" data-seen="'+i+'">'+(x.seen?'Mark as new':'Mark as read')+'</button><button type="button" class="danger" data-enqdel="'+i+'">Delete</button></div></div>'}).join(''):'<p class="hint">Nothing yet. When someone fills in the contact form on your website, it appears here.</p>')}
+};
+function drawTabs(){$('#tabs').innerHTML=TABS.map(function(t){return'<button class="tab" role="tab" data-tab="'+t[0]+'" aria-selected="'+(t[0]===tab)+'">'+t[1]+(t[0]==='enq'&&newEnq?'<span class="dot" title="'+newEnq+' new"></span>':'')+'</button>'}).join('')}
+function draw(){var el=$('#form'),keep=el.scrollTop;el.innerHTML=VIEW[tab]();
+  if(tab==='enq'&&!enq)rpc('enquiries_list').then(function(l){enq=l;newEnq=l.filter(function(x){return!x.seen}).length;drawTabs();if(tab==='enq')draw()}).catch(function(e){toast(niceErr(e))});
+  el.scrollTop=keep}
+$('#tabs').addEventListener('click',function(e){var b=e.target.closest('[data-tab]');if(!b)return;tab=b.dataset.tab;drawTabs();draw();$('#form').scrollTop=0;$('#body').classList.remove('showpv');$('#pvTab').textContent='Preview'});
+
+/* typing updates the draft and the preview without redrawing the form (so the cursor stays put) */
+$('#form').addEventListener('input',function(e){var el=e.target,p=el.dataset.p;
+  if(p){var v=el.type==='checkbox'?el.checked:el.value;if(p.indexOf('.stars')>0)v=+v;setP(p,v);changed()}
+  else if(el.dataset.lines){setP(el.dataset.lines,el.value.split('\n').map(function(s){return s.trim()}).filter(Boolean));changed()}
+  else if(el.dataset.secon!=null){D.sections[+el.dataset.secon].on=el.checked;changed()}});
+$('#form').addEventListener('change',async function(e){var el=e.target;
+  if(el.dataset.up&&el.files&&el.files[0]){try{toast('Adding picture…');var u=await upload(el.files[0]);setP(el.dataset.up,u);changed();draw();toast('Picture added')}catch(er){toast(niceErr(er))}el.value=''}
+  else if(el.hasAttribute('data-gal')&&el.files&&el.files.length){try{var n=0;for(var i=0;i<el.files.length;i++){toast('Adding picture '+(i+1)+' of '+el.files.length+'…');D.gallery.push({id:uid(),url:await upload(el.files[i]),alt:''});n++}changed();draw();toast(n+' added')}catch(er){toast(niceErr(er));changed();draw()}el.value=''}});
+$('#form').addEventListener('click',async function(e){var b=e.target.closest('button');if(!b)return;var d=b.dataset;
+  if(d.look){var l=LOOKS[d.look];Object.assign(D.look,{bg:l[1],panel:l[2],ink:l[3],mute:l[4],accent:l[5]});changed();return draw()}
+  if(d.rmimg){setP(d.rmimg,'');changed();return draw()}
+  if(d.add){var a=d.add;D[a].push(a==='packages'?{id:uid(),name:'New package',price:'',per:'',desc:'',items:[],popular:false}:a==='reviews'?{id:uid(),name:'',text:'',stars:5}:{id:uid(),q:'',a:''});changed();return draw()}
+  if(d.del){var s=d.del.split(':');if(!confirm('Delete this?'))return;D[s[0]].splice(+s[1],1);changed();return draw()}
+  if(d.mv){var m=d.mv.split(':'),arr=D[m[0]],i=+m[1],j=i+ +m[2];if(j<0||j>=arr.length||(m[0]==='sections'&&j<1))return;var t=arr[i];arr[i]=arr[j];arr[j]=t;changed();return draw()}
+  if(d.seen!=null){var x=enq[+d.seen];try{await rpc('enquiry_mark',{p_id:x.id,p_seen:!x.seen});x.seen=!x.seen;newEnq=enq.filter(function(y){return!y.seen}).length;drawTabs();draw()}catch(er){toast(niceErr(er))}return}
+  if(d.enqdel!=null){var y=enq[+d.enqdel];if(!confirm('Delete this message for good?'))return;try{await rpc('enquiry_delete',{p_id:y.id});enq.splice(+d.enqdel,1);newEnq=enq.filter(function(z){return!z.seen}).length;drawTabs();draw()}catch(er){toast(niceErr(er))}}});
+
+/* a ready-made config.js for the public site (project address and public key only) */
+var dl=document.createElement('button');dl.textContent='Download config.js';dl.title='The website needs this file next to index.html, once';dl.addEventListener('click',function(){
+  var t='window.LP_SITE = '+JSON.stringify({url:CFG.url,key:CFG.key})+';\n',a=document.createElement('a');a.href=URL.createObjectURL(new Blob([t],{type:'text/javascript'}));a.download='config.js';document.body.appendChild(a);a.click();a.remove()});
+$('.bar').insertBefore(dl,$('#save'));
+
+(async function(){AUTH=authLoad();if(CFG.url&&CFG.key&&AUTH)await enter();else showLogin()})();
+})();
+</script>
+</body>
+</html>

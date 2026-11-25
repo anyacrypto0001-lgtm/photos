@@ -33,7 +33,7 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;paddin
 button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 #app{position:fixed;inset:0;container-type:size}
 /* while designing, the booth is shown as an exact scaled-down copy of the full screen, so positions match what guests see */
-body.designing #app{pointer-events:none;transform:scale(var(--dzk,.7));transform-origin:0 0;outline:1px solid #3b2f3a}
+body.designing #app{pointer-events:none;z-index:47;transform:translate(var(--dzx,0px),var(--dzy,0px)) scale(var(--dzk,.7));transform-origin:0 0;box-shadow:0 18px 50px rgba(0,0,0,.55)}
 .screen{position:absolute;inset:0;display:none;flex-direction:column;padding:max(16px,env(safe-area-inset-top)) max(22px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(22px,env(safe-area-inset-left))}
 .screen.active{display:flex;animation:in .35s ease}
 @keyframes in{from{opacity:0;transform:scale(.985)}}
@@ -101,10 +101,11 @@ body.designing #app{pointer-events:none;transform:scale(var(--dzk,.7));transform
 body:not(.designing) .mv-hide{display:none!important}
 body.designing .mv-hide{opacity:.28}
 @keyframes dzflash{0%,60%{box-shadow:0 0 0 3px #38d9f5}100%{box-shadow:0 0 0 3px transparent}}
-.dzbody section.dzflash{animation:dzflash 1.3s ease-out}
+#dzPanel section.dzflash{animation:dzflash 1.3s ease-out}
 body.designing [data-mv],body.designing .deco>*{pointer-events:auto;cursor:grab;touch-action:none}
 body.designing [data-mv]:hover,body.designing .deco>*:hover{outline:2px dashed rgba(127,127,127,.8);outline-offset:6px}
 body.designing .mv-sel{outline:2px solid #38d9f5!important;outline-offset:6px}
+body.designing .mv-sel::before{content:attr(data-l);position:absolute;left:0;bottom:100%;margin-bottom:10px;background:#38d9f5;color:#06323a;font:600 12px/1.4 Outfit,system-ui,sans-serif;padding:1px 8px;border-radius:6px;white-space:nowrap;pointer-events:none;scale:calc(1 / var(--dzk,1));transform-origin:0 100%}
 #s-ready[data-side=left] .stagewrap{flex-direction:row-reverse}
 #s-review[data-side=right] .review{flex-direction:row-reverse}
 .designs{flex:1;display:flex;flex-wrap:wrap;gap:clamp(14px,2.4cqw,28px);align-content:center;justify-content:center;overflow:auto;padding:8px}
@@ -321,15 +322,23 @@ body.designing #webBar{display:none}
 .arrs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
 .arr{border:1px solid var(--line);border-radius:10px;padding:6px 4px;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px;color:var(--mute);min-height:44px}
 .arr svg{height:54px;width:auto;max-width:100%}.arr[aria-pressed=true]{border-color:var(--accent);color:var(--ink)}
-.dz{position:fixed;top:0;right:0;bottom:0;width:min(440px,100%);z-index:46;background:var(--bg);border-left:1px solid var(--line);display:flex;flex-direction:column;padding:max(12px,env(safe-area-inset-top)) 16px max(12px,env(safe-area-inset-bottom));gap:10px;box-shadow:-20px 0 60px rgba(0,0,0,.4)}
-.dz>header{display:flex;justify-content:space-between;align-items:center;gap:10px}.dz h2{margin:0;font-size:22px}
-.dz .tabs{justify-content:flex-start;flex:none}
-.dzbody{flex:1;overflow:auto;display:flex;flex-direction:column;gap:12px;padding-right:4px;-webkit-user-select:text;user-select:text}
-.dzbody section{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-.dzbody section>*{grid-column:1/-1}.dzbody section>.half{grid-column:auto}
-.dzbody h3{margin:0;font-size:16px}.dzbody input[type=text],.dzbody select{background:var(--bg)}
-.dzbody .themes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
-@media(max-width:900px){.dz{top:48%;width:100%;border-left:0;border-top:1px solid var(--line)}}
+.dz{position:fixed;inset:0;z-index:46;background:var(--bg);display:flex;flex-direction:column;padding:max(10px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left));-webkit-user-select:none;user-select:none}
+.dz .edbody{flex:1;display:flex;gap:16px;min-height:0;padding-top:12px}
+.dz .edstage{padding:12px;gap:8px;justify-content:flex-start}
+.dz .adds{flex:none;display:flex;flex-wrap:wrap;justify-content:center;gap:6px;position:relative;z-index:48}
+.dzscreen{flex:1;min-height:0;width:100%}
+.dz #dzPanel{-webkit-user-select:text;user-select:text}
+#dzPanel section{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+#dzPanel section>*{grid-column:1/-1}#dzPanel section>.half{grid-column:auto}
+#dzPanel input[type=text],#dzPanel select,#dzPanel textarea{background:var(--bg)}
+#dzPanel .themes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.dz .edpanel{width:min(400px,42vw)}
+@media (max-width:860px),(orientation:portrait){.dz .edbody{flex-direction:column}.dz .edstage{flex:0 0 46%}.dz .edpanel{width:100%;flex:1}
+ .dz .edbar{gap:8px}.dz .edbar h2{font-size:18px}.dz .edact{margin-left:auto}
+ .dz .edbar .tabs{order:3;flex:0 0 100%;flex-wrap:nowrap;overflow-x:auto;justify-content:flex-start}
+ .dz .tab{flex:none;white-space:nowrap;padding:6px 12px;min-height:38px;font-size:14px}
+ .dz .adds{flex-wrap:nowrap;overflow-x:auto;justify-content:flex-start;width:100%}.dz .adds>*{flex:none}
+ .dz .edhint{display:none}}
 .filebtn{position:relative;padding:9px 16px;border-radius:12px;border:1px solid var(--line);min-height:44px;background:var(--bg);display:inline-flex!important;flex-direction:row!important;align-items:center;justify-content:center;cursor:pointer;color:var(--ink)!important;font-size:15px!important}
 .filebtn:focus-within{outline:3px solid var(--accent)}
 .adds .filebtn{background:none;border-style:dashed;font-size:14px!important;padding:8px 12px}
@@ -485,8 +494,8 @@ textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);borde
       </fieldset>
       <fieldset><legend>Look</legend>
         <p class="hint">Design the frame for each layout: colours, photo spacing, text, your logo, stickers, a printed QR code, backgrounds and overlays.</p>
-        <div class="btnrow"><button class="go small" id="openEditor">Edit print templates</button><button class="go small" id="openDesigner">Customise booth screens</button></div>
-        <p class="hint">Booth screens: start screen, mode picker, camera, results and sharing, colours and fonts.</p>
+        <div class="btnrow"><button class="go small" id="openEditor">Edit print templates</button><button class="go small" id="openDesigner">Edit booth screens</button></div>
+        <p class="hint">Booth screen editor: start screen, mode picker, camera, results and sharing, colours and fonts.</p>
         <label>Booth screen accent colour<input data-k="accent" type="color"></label>
       </fieldset>
       <fieldset><legend>Your fonts</legend>
@@ -697,9 +706,19 @@ textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);borde
 </div>
 
 <div class="dz" id="designer" hidden>
-  <header><h2>Booth screens</h2><button class="go small" id="dzDone">Done</button></header>
-  <div class="tabs" id="dzTabs" role="tablist" aria-label="Screen"></div>
-  <div class="dzbody" id="dzPanel"></div>
+  <header class="edbar">
+    <h2>Booth screen editor</h2>
+    <div class="tabs" id="dzTabs" role="tablist" aria-label="Screen"></div>
+    <div class="edact"><button class="mini" id="dzUndo" disabled>Undo</button><button class="mini" id="dzResetTab">Reset screen</button><button class="go small" id="dzDone">Done</button></div>
+  </header>
+  <div class="edbody">
+    <div class="edstage" id="dzStage">
+      <div class="adds" id="dzAdd"><button data-decoadd="text">+ Text</button><label class="filebtn">+ Picture<input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" data-decopic></label><button data-decoadd="logo">+ Logo</button><button data-decoadd="mode">+ Mode button</button><button data-decoadd="qr">+ QR code</button><button data-decoadd="clock">+ Date / time</button></div>
+      <div class="dzscreen" id="dzScreen"></div>
+      <p class="edhint" id="dzHint">Tap anything on the screen to select it, then drag to move it. Tap empty space for the background.</p>
+    </div>
+    <aside class="edpanel" id="dzPanel"></aside>
+  </div>
 </div>
 
 <div class="overlay" id="webGate" hidden>
@@ -2905,7 +2924,7 @@ function screenBg(el,bg,assetKey){
 function applyTheme(){
   clearMvStyles();
   const U=S.ui,T=U.theme,r=document.documentElement.style,st=U.start;
-  const tv=(k,v)=>v?r.setProperty(k,v):r.removeProperty(k),hf=FONTS[T.headFont],bf=FONTS[T.btnFont];
+  const tv=(k,v)=>v?r.setProperty(k,v):r.removeProperty(k),hf=T.headFont==='body'?null:T.headFont?FONTS[T.headFont]:(FONTS.Slight&&FONTS.Slight.custom?FONTS.Slight:null),bf=FONTS[T.btnFont]; /* headings: the font chosen, else an uploaded Slight, 'body' = same as everyday text */
   tv('--headfont',hf&&hf.fam);tv('--btnfont',bf&&bf.fam);tv('--headink',T.headInk);tv('--btn2bg',T.btn2Bg);tv('--btn2ink',T.btn2Ink);
   r.setProperty('--accent',S.accent);r.setProperty('--bg',T.bg);r.setProperty('--panel',T.panel);r.setProperty('--ink',T.ink);r.setProperty('--mute',T.mute);
   r.setProperty('--line',`color-mix(in srgb, ${T.ink} 17%, ${T.bg})`);r.setProperty('--r',(+T.radius||0)+'px');r.setProperty('--uifont',(FONTS[T.font]||FONTS.Outfit).fam);
@@ -4118,7 +4137,7 @@ function syncPin(){if(SERVER)fetch('/api/stats/auth',{method:'POST',headers:{'Co
 /* The analytics inside the booth: only from Settings (so only after the staff PIN), with the PIN passed on so nothing is typed,
    and closed again after 3 minutes untouched, so it is never left open for guests. Other devices use the online page (own sign-ins). */
 let anTimer=0,anLast=0;const AN_IDLE=180000;
-function onlineAnalyticsUrl(){const vb=viewerBase();if(!vb)return'';try{return new URL('analytics.html',vb).href}catch(e){return''}}
+function onlineAnalyticsUrl(){const vb=viewerBase();if(!vb)return'';try{return new URL(/\/p\/(index\.html)?$/i.test(new URL(vb).pathname)?'../analytics.html':'analytics.html',vb).href}catch(e){return''}} /* the guest page may sit in a p/ folder next to the website: analytics is one level up */
 function renderAnalytics(){
   const el=$('#anLink');if(!el)return;$('#anOpen').disabled=!SERVER;
   if(!SERVER){el.className='srv';el.innerHTML='Analytics need the booth server. Double-click <b>LePetique.exe</b> instead of opening this page directly.';return}
@@ -4533,9 +4552,9 @@ function renderFontList(){
 }
 $('#fontUp').addEventListener('change',async e=>{const files=[...e.target.files];e.target.value='';
   for(const f of files){try{const n=await addCustomFont(f);toast(`Added the font "${n}"`)}catch(err){toast(`"${f.name}" isn't a usable font file`)}}
-  renderFontList();
+  renderFontList();applyTheme(); /* headings and the start title pick up a new (or removed) Slight right away */
 });
-$('#fontList').addEventListener('click',async e=>{const b=e.target.closest('[data-fdel]');if(!b)return;await removeCustomFont(b.dataset.fdel);renderFontList()});
+$('#fontList').addEventListener('click',async e=>{const b=e.target.closest('[data-fdel]');if(!b)return;await removeCustomFont(b.dataset.fdel);renderFontList();applyTheme()});
 
 /* ---- Settings: filters (try them live, make your own, upload LUTs) ---- */
 let ftSel='none';
@@ -5294,7 +5313,7 @@ function dzSections(tab){
   return[
     ['Quick looks',[{t:'themes'}]],
     ['Fonts by type',[{t:'font',k:'ui.theme.font',l:'Everyday text',o:Object.keys(FONTS).map(f=>[f,f])},
-      {t:'font',k:'ui.theme.headFont',l:'Headings',o:[['','Same as everyday text']].concat(Object.keys(FONTS).map(f=>[f,f]))},
+      {t:'font',k:'ui.theme.headFont',l:'Headings',o:[['','Automatic (Slight, if uploaded)'],['body','Same as everyday text']].concat(Object.keys(FONTS).map(f=>[f,f]))},
       {t:'font',k:'ui.theme.btnFont',l:'Buttons',o:[['','Same as everyday text']].concat(Object.keys(FONTS).map(f=>[f,f]))},
       {t:'hint',l:'To change one single element, select it on its screen (tap it, or pick it under "Items on this screen").'}]],
     ['Buttons and headings',[{t:'color',k:'ui.theme.headInk',l:'Heading colour',def:()=>S.ui.theme.ink},{t:'color',k:'ui.theme.btn2Bg',l:'Other buttons',def:()=>S.ui.theme.panel},
@@ -5329,9 +5348,7 @@ function dzField(f){
 function dzTabs(){$('#dzTabs').innerHTML=[['start','Start'],['pick','Choose mode'],['design','Choose design'],['capture','Camera'],['share','Results'],['theme','Colours & fonts']].map(([k,l])=>`<button class="tab" role="tab" data-dzt="${k}" aria-selected="${k===DZ.tab}">${l}</button>`).join('')}
 function decoSection(){
   const k=DZ.tab;if(!DECO_SCREEN[k])return'';const L=(S.ui.deco[k]=S.ui.deco[k]||[]),d=DZ.sel&&DZ.sel.kind==='deco'?L.find(x=>x.id===DZ.sel.id):null;
-  let h=`<section><h3>Your elements <small>top of the list is in front</small></h3><p class="hint">Add words, pictures, your logo, buttons that start a mode, a QR code or the date, then drag them into place. Arrow keys nudge the selected item (Shift for bigger steps).</p>
-    <div class="ellist">${L.slice().reverse().map(x=>`<div class="elrow"><button class="elbtn" data-decosel="${x.id}" aria-pressed="${d&&d.id===x.id}"><b>${DECO_ICON[x.type]||'▣'}</b>${esc(decoLabel(x))}${x.lock?' 🔒':''}</button><button class="elx" data-decodel="${x.id}" title="Delete" aria-label="Delete">✕</button></div>`).join('')}</div>
-    <div class="adds"><button data-decoadd="text">+ Text</button>${fileBtn('+ Picture','data-decopic')}<button data-decoadd="logo">+ Logo</button><button data-decoadd="mode">+ Mode button</button><button data-decoadd="qr">+ QR code</button><button data-decoadd="clock">+ Date / time</button></div>`;
+  let h=d?`<section><h3>${esc(decoLabel(d))}</h3>`:'';
   if(d){
     const fontSel=`<label>Font<select data-dk="font">${Object.keys(FONTS).map(f=>`<option ${f===d.font?'selected':''}>${f}</option>`).join('')}</select></label>`;
     if(d.type==='text')h+=`<label>Text<textarea data-dk="text" rows="2">${esc(d.text)}</textarea></label>${fontSel}
@@ -5352,7 +5369,7 @@ function decoSection(){
       <div class="btnrow"><button data-decoact="front">To front</button><button data-decoact="fwd">Forward</button><button data-decoact="bwd">Back</button><button data-decoact="back">To back</button></div>
       <div class="btnrow"><button data-decoact="center">Centre across</button><button data-decoact="middle">Centre down</button><button data-decoact="dup">Duplicate</button><button class="danger" data-decoact="del">Delete</button></div>`;
   }
-  return h+'</section>';
+  return d?h+'</section>':'';
 }
 /* "Inside the card" controls for a mode card in the booth-screen designer */
 function cardPanel(cur,it){
@@ -5374,10 +5391,8 @@ function cardPanel(cur,it){
 }function itemsSection(){
   const k=DZ.tab,sel=MV_SCREENS[k];if(!sel)return'';const L=layoutOf(k),keys=[...$(sel).querySelectorAll('[data-mv]')].map(e=>e.dataset.mv);
   const cur=DZ.sel&&DZ.sel.kind==='mv'&&DZ.sel.screen===k?DZ.sel.key:null,it=cur?(L.items||{})[cur]||{}:null,caps=cur?mvCaps(cur):'',fallback=(v,d)=>v||d;
-  let h=`<section><h3>Items on this screen <small>${L.free?'free placement':'automatic placement'}</small></h3>
-    <p class="hint"><b>Drag anything on the screen to move it.</b> Tap an item (here or on the screen) to resize, hide or restyle just that item.</p>
-    <div class="mvchips"><button class="chip" data-dzbg="1" aria-pressed="false">Background</button>${keys.map(x=>`<button class="chip" data-mvsel="${x}" aria-pressed="${x===cur}">${esc(mvName(x))}${(L.items||{})[x]&&L.items[x].hide?' · hidden':''}${(L.items||{})[x]&&L.items[x].lock?' 🔒':''}</button>`).join('')}</div>`;
-  if(cur){const T=S.ui.theme;
+  let h='';
+  if(cur){const T=S.ui.theme;h='<section>';
     h+=`<h3>${esc(mvName(cur))}</h3>${rng('Size','data-mvp="s"',+it.s||1,.3,3,.05,'×')}
       ${caps.includes('f')?`<label>Font<select data-mvp="font"><option value="">Theme font</option>${Object.keys(FONTS).map(f=>`<option ${f===it.font?'selected':''}>${f}</option>`).join('')}</select></label>`:''}
       ${caps.includes('t')?`<label class="half">Text colour<input type="color" data-mvp="color" value="${esc(fallback(it.color,T.ink))}"></label>`:''}
@@ -5391,18 +5406,27 @@ function cardPanel(cur,it){
       ${caps.includes('p')?cardPanel(cur,it):''}
       <label class="chk"><input type="checkbox" data-mvp="hide" ${it.hide?'checked':''}> Hide this item</label>
       <label class="chk"><input type="checkbox" data-mvp="lock" ${it.lock?'checked':''}> Lock in place (can't be dragged by mistake)</label>
-      <div class="btnrow"><button data-mvact="center">Centre across</button><button data-mvact="middle">Centre down</button><button data-mvact="style">Reset its style</button></div>`}
-  h+=`<div class="btnrow"><button class="mini" data-mvact="auto" ${L.free?'':'disabled'}>Put everything back in place</button></div></section>`;
+      <div class="btnrow"><button data-mvact="center">Centre across</button><button data-mvact="middle">Centre down</button><button data-mvact="style">Reset its style</button></div></section>`}
   return h;
+}
+function layersSection(){
+  const k=DZ.tab;if(!MV_SCREENS[k]&&!DECO_SCREEN[k])return'';
+  const L=layoutOf(k),sc=MV_SCREENS[k]?$(MV_SCREENS[k]):null,keys=sc?[...sc.querySelectorAll('[data-mv]')].map(e=>e.dataset.mv):[],
+    cm=DZ.sel&&DZ.sel.kind==='mv'&&DZ.sel.screen===k?DZ.sel.key:null,cd=DZ.sel&&DZ.sel.kind==='deco'?DZ.sel.id:null,deco=DECO_SCREEN[k]?(S.ui.deco[k]=S.ui.deco[k]||[]):[];
+  return `<section><h3>Layers <small>top of the list is in front</small></h3><div class="ellist">
+    ${deco.slice().reverse().map(x=>`<div class="elrow"><button class="elbtn" data-decosel="${x.id}" aria-pressed="${x.id===cd}"><b>${DECO_ICON[x.type]||'▣'}</b>${esc(decoLabel(x))}${x.lock?' 🔒':''}</button><button class="elx" data-decodel="${x.id}" title="Delete" aria-label="Delete">✕</button></div>`).join('')}
+    ${keys.map(x=>{const it=(L.items||{})[x]||{};return `<div class="elrow"><button class="elbtn" data-mvsel="${x}" aria-pressed="${x===cm}"><b>▢</b>${esc(mvName(x))}${it.hide?' <em>hidden</em>':''}${it.lock?' 🔒':''}</button></div>`}).join('')}
+    <div class="elrow"><button class="elbtn" data-dzbg="1" aria-pressed="${!DZ.sel}"><b>▦</b>Background</button></div></div>
+    <div class="btnrow"><button class="mini" data-mvact="auto" ${L.free?'':'disabled'}>Put everything back in place</button></div></section>`;
 }
 /* The screen's own look (its background) comes FIRST, so it is never hidden below the item lists and you don't scroll up and down for it. */
 function dzPanel(){const keep=$('#dzPanel').scrollTop,sec=([t,fs],i)=>`<section${i===0?' id="dzBgSec"':''}><h3>${t}</h3>${fs.filter(f=>!f.if||f.if()).map(dzField).join('')}</section>`,all=dzSections(DZ.tab).map((s,i)=>sec(s,i));
-  $('#dzPanel').innerHTML=(all[0]||'')+itemsSection()+decoSection()+all.slice(1).join('');$('#dzPanel').scrollTop=keep}
-/* tapping empty screen, or the Background chip: show the background settings (they are at the top) and flash them */
+  $('#dzPanel').innerHTML=layersSection()+itemsSection()+decoSection()+(all[0]||'')+all.slice(1).join('');$('#dzPanel').scrollTop=keep}
+/* tapping empty screen, or the Background layer: show the background settings (they are at the top) and flash them */
 function dzShowBg(){const s=$('#dzBgSec');if(!s)return;$('#dzPanel').scrollTop=0;s.classList.remove('dzflash');void s.offsetWidth;s.classList.add('dzflash')}
 document.addEventListener('pointerdown',ev=>{
   if(!document.body.classList.contains('designing'))return;
-  if(ev.target.closest('#designer,[data-deco],[data-mv],.overlay,.ed,dialog,#toast'))return;
+  if(ev.target.closest('[data-deco],[data-mv],.overlay,.ed,dialog,#toast'))return;if(ev.target.closest('#designer')&&!ev.target.closest('#dzStage'))return;
   const r=$('#app').getBoundingClientRect();if(ev.clientX<r.left||ev.clientX>r.right||ev.clientY<r.top||ev.clientY>r.bottom)return;
   DZ.sel=null;dzPanel();renderDeco();markMv();dzShowBg();
 });
@@ -5418,14 +5442,23 @@ async function dzPreview(){
   else if(t==='capture'){if(screen!=='ready')openReady(enabledModes()[0]||'strip');else openReady(mode);syncCamera()}
   else if(t==='share'){DZ.sample=await makeSample();showReview(DZ.sample,'session')}
 }
-function dzScale(){const k=innerWidth>900?Math.max(.2,(innerWidth-450)/innerWidth):Math.max(.2,innerHeight*.47/innerHeight);document.documentElement.style.setProperty('--dzk',k.toFixed(4))}
-addEventListener('resize',dzScale);
-function openDesigner(){dzScale();DZ.tab=DZ.tab||'start';$('#admin').hidden=true;document.body.classList.add('designing');$('#designer').hidden=false;dzTabs();dzPanel();dzPreview().then(dzPanel)}
+/* the booth screen is shown, scaled to fit, in the middle of the stage: a placeholder box (#dzScreen) takes the space, #app is moved onto it */
+function dzFit(){if($('#designer').hidden||!innerWidth||!innerHeight)return;const b=$('#dzScreen').getBoundingClientRect(),k=Math.max(.1,Math.min(b.width/innerWidth,b.height/innerHeight)),st=document.documentElement.style;
+  st.setProperty('--dzk',k.toFixed(4));st.setProperty('--dzx',(b.left+(b.width-innerWidth*k)/2).toFixed(1)+'px');st.setProperty('--dzy',(b.top+(b.height-innerHeight*k)/2).toFixed(1)+'px')}
+addEventListener('resize',dzFit);
+function openDesigner(){DZ.tab=DZ.tab||'start';$('#admin').hidden=true;$('#designer').hidden=false;dzFit();document.body.classList.add('designing');DZ.undo=[];DZ.last=dzState();DZ.at=0;$('#dzUndo').disabled=true;dzTabs();dzPanel();dzPreview().then(dzPanel);requestAnimationFrame(dzFit)}
 function closeDesignerCam(){setTimeout(syncCamera,0)}
 function closeDesigner(){closeDesignerCam();DZ.sel=null;markMv();$('#designer').hidden=true;document.body.classList.remove('designing');clearTimeout(DZ.t);saveSettings();applyTheme();goAttract();if(adminOpen){$('#admin').hidden=false;fillForm()}}
+/* Undo: a snapshot of the screen settings before each change. Quick edits in a row (a slider, a drag) are one step. */
+const dzState=()=>JSON.stringify({ui:S.ui,accent:S.accent});
+function dzTrack(force){const cur=dzState();if(!DZ.undo||cur===DZ.last)return;const now=Date.now();
+  if(force||now-DZ.at>1200){DZ.undo.push(DZ.last);if(DZ.undo.length>50)DZ.undo.shift()}
+  DZ.last=cur;DZ.at=now;$('#dzUndo').disabled=false}
+function dzUndo(){if(!DZ.undo||!DZ.undo.length)return;const st=JSON.parse(DZ.undo.pop());S.ui=st.ui;S.accent=st.accent;DZ.last=dzState();DZ.at=0;DZ.sel=null;
+  $('#dzUndo').disabled=!DZ.undo.length;syncBrand();applyTheme();applyLayout();renderModes();renderDeco();markMv();dzPanel();dzPreview().then(dzPanel);clearTimeout(DZ.t);DZ.t=setTimeout(saveSettings,300)}
 let dzRT;
 function dzChanged(structural){
-  clearTimeout(DZ.t);DZ.t=setTimeout(saveSettings,300);applyTheme();if(structural)dzPanel();
+  clearTimeout(DZ.t);dzTrack(structural);DZ.t=setTimeout(saveSettings,300);applyTheme();if(structural)dzPanel();
   clearTimeout(dzRT);dzRT=setTimeout(()=>{const t=DZ.tab;if(t==='pick'||t==='theme')renderModes();else if(t==='capture'&&!busy)openReady(mode);else if(t==='share'&&DZ.sample)showReview(DZ.sample,'session')},120);
 }
 $('#dzPanel').addEventListener('input',e=>{
@@ -5452,21 +5485,21 @@ function addDeco(type,extra){
   decoList().push(d);DZ.sel={kind:'deco',id:d.id};dzChanged(true)}
 $('#dzPanel').addEventListener('input',e=>{const el=e.target,k=el.dataset.dk;if(!k)return;const d=selDeco();if(!d)return;
   d[k]=k==='lock'?el.checked:['size','w','rot','alpha','r'].includes(k)?+el.value:el.value;const out=el.closest('.rng');if(out)out.querySelector('output').textContent=Math.round(+el.value*100)/100;
-  clearTimeout(DZ.t);DZ.t=setTimeout(saveSettings,300);renderDeco();
+  clearTimeout(DZ.t);dzTrack();DZ.t=setTimeout(saveSettings,300);renderDeco();
   if(k==='lock'||k==='mode'||k==='fmt'){const r=$(`#dzPanel [data-decosel="${d.id}"]`);if(r)r.lastChild.textContent=decoLabel(d)+(d.lock?' 🔒':'')}},true);
-$('#dzPanel').addEventListener('change',async e=>{const el=e.target;if(el.type!=='file'||!el.files||!el.files[0])return;const f=el.files[0];
+$('#designer').addEventListener('change',async e=>{const el=e.target;if(el.type!=='file'||!el.files||!el.files[0])return;const f=el.files[0];el.value='';
   if(el.hasAttribute('data-decopic')){const id=newElId();if(await setAsset('dz_'+id,f))addDeco('image',{id})}
   else if(el.dataset.decopicfor){if(await setAsset('dz_'+el.dataset.decopicfor,f))dzChanged(true)}},true);
 $('#dzPanel').addEventListener('input',e=>{const el=e.target,k=el.dataset.mvp;if(!k||!DZ.sel||DZ.sel.kind!=='mv')return;
   const it=mvItem(DZ.sel.screen,DZ.sel.key);it[k]=['hide','fill','lock','sh','showIcon','showTitle','showDesc','showKey'].includes(k)?el.checked:['s','w','h','r','ph','isz','tsz','dsz','pad','gap','bw'].includes(k)?+el.value:el.value;
   const out=el.closest('.rng');if(out)out.querySelector('output').textContent=k==='s'?Math.round(+el.value*100)/100+'×':(k==='w'||k==='h')&&!+el.value?'Auto':Math.round(+el.value)+(k==='w'||k==='h'?'%':'px');
-  clearTimeout(DZ.t);DZ.t=setTimeout(saveSettings,300);applyTheme();if(DZ.sel.key.startsWith('card_'))renderModes();if(['hide','font','pic','fill','lock'].includes(k))dzPanel()},true);
+  clearTimeout(DZ.t);dzTrack();DZ.t=setTimeout(saveSettings,300);applyTheme();if(DZ.sel.key.startsWith('card_'))renderModes();if(['hide','font','pic','fill','lock'].includes(k))dzPanel()},true);
 /* the name and description of a mode, edited right on its card */
 $('#dzPanel').addEventListener('input',e=>{const el=e.target,w=el.dataset.cardtext;if(!w||!DZ.sel||DZ.sel.kind!=='mv'||!DZ.sel.key.startsWith('card_'))return;
   const m=DZ.sel.key.slice(5);S.ui.pick[w]=S.ui.pick[w]||{};if(el.value.trim())S.ui.pick[w][m]=el.value;else delete S.ui.pick[w][m];
-  clearTimeout(DZ.t);DZ.t=setTimeout(saveSettings,300);renderModes()},true);
+  clearTimeout(DZ.t);dzTrack();DZ.t=setTimeout(saveSettings,300);renderModes()},true);
 $('#dzPanel').addEventListener('change',async e=>{const el=e.target,k=el.dataset.mvpic;if(!k||!el.files||!el.files[0])return;if(await setAsset(k,el.files[0])){renderModes();dzPanel()}},true);
-$('#dzPanel').addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;const d=b.dataset;
+$('#designer').addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;const d=b.dataset;
   if(b.id==='dzClearType'){Object.assign(S.ui.theme,{headInk:'',btn2Bg:'',btn2Ink:''});return dzChanged(true)}
   if(d.dzbg){DZ.sel=null;dzPanel();renderDeco();markMv();return dzShowBg()}
   if(d.mvsel){DZ.sel={kind:'mv',screen:DZ.tab,key:d.mvsel};return dzChanged(true)}
@@ -5531,7 +5564,7 @@ addEventListener('pointermove',ev=>{if(!MV)return;
   if(sx!=null)x=sx;if(sy!=null)y=sy;showGuides(sx,sy);
   o.x=+Math.max(0,Math.min(100,x)).toFixed(2);o.y=+Math.max(0,Math.min(100,y)).toFixed(2);MV.moved=true;
   if(MV.deco)renderDeco();else{const el=$(`${MV_SCREENS[MV.k]} [data-mv="${MV.key}"]`);if(el){el.style.left=o.x+'%';el.style.top=o.y+'%'}}});
-addEventListener('pointerup',()=>{if(!MV)return;const m=MV.moved;MV=null;showGuides(null,null);if(m){clearTimeout(DZ.t);DZ.t=setTimeout(saveSettings,200)}});
+addEventListener('pointerup',()=>{if(!MV)return;const m=MV.moved;MV=null;showGuides(null,null);if(m){clearTimeout(DZ.t);dzTrack();DZ.t=setTimeout(saveSettings,200)}});
 /* arrow keys nudge the selected item: 0.5% of the screen, 2% with Shift */
 function nudgeSel(dx,dy){
   let o=null;
@@ -5540,16 +5573,23 @@ function nudgeSel(dx,dy){
   if(!o||o.lock){if(o)toast('Unlock it first to move it');return}
   o.x=+Math.max(0,Math.min(100,(+o.x||50)+dx)).toFixed(2);o.y=+Math.max(0,Math.min(100,(+o.y||50)+dy)).toFixed(2);
   if(DZ.sel.kind==='deco')renderDeco();else{const el=$(`${MV_SCREENS[DZ.sel.screen]} [data-mv="${DZ.sel.key}"]`);if(el){el.style.left=o.x+'%';el.style.top=o.y+'%'}}
-  clearTimeout(DZ.t);DZ.t=setTimeout(saveSettings,400)}
+  clearTimeout(DZ.t);dzTrack();DZ.t=setTimeout(saveSettings,400)}
 function markMv(){$$('[data-mv]').forEach(el=>{const sec=el.closest('.screen'),k=sec&&Object.keys(MV_SCREENS).find(x=>MV_SCREENS[x]==='#'+sec.id);
   el.classList.toggle('mv-sel',!!(DZ.sel&&DZ.sel.kind==='mv'&&DZ.sel.screen===k&&DZ.sel.key===el.dataset.mv))})}
 document.addEventListener('keydown',e=>{if($('#designer').hidden||e.target.matches('input,select,textarea'))return;
   if((e.key==='Delete'||e.key==='Backspace')&&DZ.sel&&DZ.sel.kind==='deco'){e.preventDefault();const b=$(`#dzPanel [data-decodel="${DZ.sel.id}"]`);if(b)b.click()}
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();return dzUndo()}
   if(e.key==='Escape'&&DZ.sel){DZ.sel=null;dzPanel();renderDeco();markMv()}
   const arrow={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[e.key];
   if(arrow&&DZ.sel){e.preventDefault();const s=e.shiftKey?2:.5;nudgeSel(arrow[0]*s,arrow[1]*s)}});
 $('#dzTabs').addEventListener('click',e=>{const b=e.target.closest('[data-dzt]');if(!b)return;DZ.sel=null;markMv();DZ.tab=b.dataset.dzt;dzTabs();$('#dzPanel').scrollTop=0;dzPanel();dzPreview().then(dzPanel)});
 $('#dzDone').addEventListener('click',closeDesigner);
+$('#dzUndo').addEventListener('click',dzUndo);
+/* Reset screen: puts this screen's items and your elements back to how they start (its background and colours stay) */
+$('#dzResetTab').addEventListener('click',e=>{const b=e.currentTarget;
+  if(!b.dataset.armed){b.dataset.armed=1;b.textContent='Tap again to reset';setTimeout(()=>{delete b.dataset.armed;b.textContent='Reset screen'},3000);return}
+  delete b.dataset.armed;b.textContent='Reset screen';const k=DZ.tab;if(S.ui.layout)delete S.ui.layout[k];S.ui.deco=S.ui.deco||{};S.ui.deco[k]=[];
+  DZ.sel=null;dzTrack(true);applyLayout();renderDeco();renderModes();dzChanged(true);toast('Screen reset')});
 $('#openDesigner').addEventListener('click',openDesigner);
 
 /* ---------- designs shared with the online editor (editor.html) through Supabase ----------

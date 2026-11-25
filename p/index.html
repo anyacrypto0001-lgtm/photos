@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Your photos</title>
+<!--
+  Le Petique guest page. Host this one file on any free static host (GitHub Pages, Netlify, Cloudflare Pages),
+  then paste its address into the booth: Settings → Sharing → Online → Guest page address (the address of this file, for example https://yourdomain/p/).
+  Each QR code opens this page with the session's details after the # and the page loads that session's
+  photo, live photo, GIF and video straight from your Supabase bucket. Nothing is stored here.
+-->
+<style>
+:root{--a:#ff5a7a;--bg:#141014;--card:#1f191f;--ink:#fff;--mute:rgba(255,255,255,.65)}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink)}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;text-align:center;-webkit-text-size-adjust:100%}
+main{max-width:560px;margin:0 auto;padding:28px 16px 48px}
+h1{font-size:28px;line-height:1.15;margin:0 0 4px;overflow-wrap:anywhere}
+.sub{color:var(--mute);margin:0 0 20px}
+figure{margin:0 0 28px}
+figcaption{font-weight:700;margin:0 0 8px;color:var(--mute);font-size:14px;letter-spacing:.04em;text-transform:uppercase}
+.media{position:relative;border-radius:14px;overflow:hidden;background:var(--card);min-height:180px}
+.media img,.media video{width:100%;display:block}
+.wait{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--mute);padding:16px;font-size:15px}
+.btn{display:block;margin-top:12px;padding:15px;border-radius:999px;background:var(--a);color:#fff;font-weight:700;font-size:17px;text-decoration:none}
+.btn[aria-disabled=true]{opacity:.4;pointer-events:none}
+button.btn{width:100%;border:0;font:inherit;font-weight:700;font-size:17px;cursor:pointer}
+.btn.alt{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 2px rgba(255,255,255,.3);margin-top:10px}
+.all{margin:0 0 26px}
+.all .btn{margin-top:0;font-size:18px;padding:17px}
+.note{color:var(--mute);font-size:14px;margin:8px 0 0;min-height:1em}
+small{display:block;color:var(--mute);line-height:1.45}
+.err{background:var(--card);border-radius:14px;padding:22px 16px}
+</style>
+</head>
+<body>
+<main id="app"><p class="sub">Loading…</p></main>
+<script>
+(function(){
+  var q=new URLSearchParams(location.hash.slice(1)||location.search.slice(1));
+  var app=document.getElementById('app');
+  function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+  function fail(msg){app.innerHTML='<div class="err"><h1>Photo not found</h1><p class="sub">'+esc(msg)+'</p></div>'}
+
+  var u=(q.get('u')||'').trim(),b=(q.get('b')||'').trim(),p=(q.get('p')||'').trim(),m=(q.get('m')||'jpg').toLowerCase();
+  if(/^[a-z0-9]{12,40}$/i.test(u))u='https://'+u+'.supabase.co';
+  if(!/^https?:\/\/[a-z0-9.-]+(:\d+)?$/i.test(u)||!/^[\w.-]+$/.test(b)||!/^[\w.\/-]+$/.test(p)||p.indexOf('..')>=0||!/^[a-z0-9]{2,5}$/.test(m))
+    return fail('This link is incomplete. Scan the QR code again.');
+
+  var a=q.get('a');if(a&&/^[0-9a-f]{3,8}$/i.test(a))document.documentElement.style.setProperty('--a','#'+a);
+  var title=q.get('t')||'Your photos';document.title=title;
+  var enc=function(s){return s.split('/').map(encodeURIComponent).join('/')};
+  var base=u+'/storage/v1/object/public/'+encodeURIComponent(b)+'/'+enc(p);
+  var name=p.split('/').pop();
+  var VIDEO=/^(mp4|webm|mov)$/,isVid=function(ext){return VIDEO.test(ext)};
+  var MIME={jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',gif:'image/gif',mp4:'video/mp4',webm:'video/webm',mov:'video/quicktime'};
+  var k=(q.get('k')||'').toLowerCase(); /* the booth mode for an animated session: boom or gif */
+
+  /* Which phone: an iPhone saves to Photos only through its share menu (Save Image / Save Video);
+     an Android phone saves a download into Downloads, which Gallery and Google Photos show. */
+  var ua=navigator.userAgent||'';
+  var IOS=/iPhone|iPad|iPod/.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  var ANDROID=/Android/i.test(ua);
+  function canShare(files){try{return !!(navigator.share&&navigator.canShare&&window.File&&navigator.canShare({files:files}))}catch(e){return false}}
+  function canShareExt(ext){try{return canShare([new File([''],'x.'+ext,{type:MIME[ext]||''})])}catch(e){return false}}
+
+  /* what this session has: the main picture plus extras ("gif", "live", or "video:mp4") */
+  var items=[{key:'main',ext:m,url:base+'.'+m,label:k==='boom'?'Boomerang':k==='gif'||m==='gif'?'GIF':isVid(m)?'Video':'Photo'}];
+  (q.get('x')||'').split('.').forEach(function(x){
+    var k=x.split(':')[0],ext=(x.split(':')[1]||'gif').toLowerCase();
+    if(!/^[a-z]{1,8}$/.test(k)||!/^[a-z0-9]{2,5}$/.test(ext))return;
+    items.push({key:k,ext:ext,url:base+'-'+k+'.'+ext,label:k==='live'?'Live photo':k==='gif'?'GIF':isVid(ext)?'Video':k});
+  });
+  /* show the photo first, then the video, live photo and GIF */
+  var RANK={main:0,video:1,live:2,gif:3};items.sort(function(a,b){return (RANK[a.key]==null?9:RANK[a.key])-(RANK[b.key]==null?9:RANK[b.key])});
+  items.forEach(function(it){
+    it.file=name+(it.key==='main'?'':'-'+it.key)+'.'+it.ext;
+    it.dl=it.url+'?download='+encodeURIComponent(it.file);
+    it.share=canShareExt(it.ext);
+    it.ok=false;it.gone=false;
+  });
+
+  /* Files are fetched as soon as they show, so a tap opens the share menu at once
+     (iPhones refuse to share if the tap was more than a moment ago). */
+  function getFile(it){
+    if(!it.fileP)it.fileP=fetch(it.url,{cache:'force-cache'}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.blob()})
+      .then(function(bl){it.ready=new File([bl],it.file,{type:MIME[it.ext]||bl.type});return it.ready})
+      .catch(function(e){it.fileP=null;throw e});
+    return it.fileP;
+  }
+  function share(list,note,done){
+    note.textContent='';
+    var go=function(files){
+      return navigator.share({files:files}).then(function(){if(done)note.textContent=done}).catch(function(e){
+        if(e&&e.name==='AbortError')return; /* the guest closed the share menu */
+        note.textContent=e&&e.name==='NotAllowedError'?'Tap the button again.':'That didn\'t work here. Press and hold the picture to save it instead.';
+      });
+    };
+    if(list.every(function(it){return it.ready}))return go(list.map(function(it){return it.ready}));
+    note.textContent='Getting it ready…';
+    Promise.all(list.map(getFile)).then(function(files){note.textContent='';
+      if(!canShare(files)){note.textContent='Your phone can\'t save these together. Use the buttons under each one.';return}
+      return go(files)}).catch(function(){note.textContent='Couldn\'t get the file. Check your connection and try again.'});
+  }
+  function download(it){var l=document.createElement('a');l.href=it.dl;l.download=it.file;l.rel='noopener';document.body.appendChild(l);l.click();l.remove()}
+  var savedNote='Saved. Find it in your Gallery or Google Photos (in Downloads).';
+
+  /* the buttons, per phone */
+  var h='<h1>'+esc(title)+'</h1>'+(q.get('s')?'<p class="sub">'+esc(q.get('s'))+'</p>':'<p class="sub"></p>');
+  var allShare=IOS&&items.every(function(it){return it.share});
+  if(items.length>1&&(allShare||ANDROID))
+    h+='<div class="all"><button type="button" class="btn" id="all" aria-disabled="true">'+(IOS?'Save all to Photos':'Save all to gallery')+'</button><p class="note" id="allNote" aria-live="polite"></p></div>';
+  items.forEach(function(it,i){
+    var lab=esc(it.label.toLowerCase()),vid=isVid(it.ext),btns;
+    if(IOS&&it.share)
+      btns='<button type="button" class="btn act-save" aria-disabled="true">Save '+lab+' to Photos</button>'+
+           '<button type="button" class="btn alt act-share" aria-disabled="true">Post to Instagram or send</button>';
+    else if(ANDROID)
+      btns='<a class="btn act-dl" aria-disabled="true" href="'+esc(it.dl)+'" download="'+esc(it.file)+'">Save '+lab+' to gallery</a>'+
+           (it.share?'<button type="button" class="btn alt act-share" aria-disabled="true">Post to Instagram or send</button>':'');
+    else
+      btns='<a class="btn act-dl" aria-disabled="true" href="'+esc(it.dl)+'" download="'+esc(it.file)+'">'+(IOS?'Save ':'Download ')+lab+'</a>'+
+           (it.share&&!IOS?'<button type="button" class="btn alt act-share" aria-disabled="true">Share '+lab+'</button>':'');
+    h+='<figure id="f'+i+'">'+(items.length>1?'<figcaption>'+esc(it.label)+'</figcaption>':'')+
+      '<div class="media"><div class="wait">Getting your '+lab+'…</div></div>'+btns+'<p class="note" aria-live="polite"></p></figure>';
+  });
+  var anyVid=items.some(function(it){return isVid(it.ext)});
+  h+='<small>'+(IOS&&allShare?'<b>Save to Photos</b> opens your iPhone\'s menu: tap <b>Save Image</b> or <b>Save Video</b>.'
+    :IOS?'To save a picture, press and hold it, then choose <b>Save to Photos</b>.'+(anyVid?' Videos go to Files → Downloads: open one, tap Share, then <b>Save Video</b>.':'')
+    :ANDROID?'Saved files show up in your Gallery or Google Photos, in the Downloads album.'
+    :'Scan the QR code with your phone to save straight to your photos.')+'</small>';
+  app.innerHTML=h;
+
+  function wire(it,fig){
+    if(fig.getAttribute('data-wired'))return;fig.setAttribute('data-wired','1');
+    var note=fig.querySelector('.note');
+    if(it.share)getFile(it).catch(function(){});
+    [].forEach.call(fig.querySelectorAll('.btn'),function(el){el.removeAttribute('aria-disabled')});
+    var s=fig.querySelector('.act-save');if(s)s.onclick=function(){share([it],note)};
+    var sh=fig.querySelector('.act-share');if(sh)sh.onclick=function(){share([it],note)};
+    var d=fig.querySelector('.act-dl');if(d&&ANDROID)d.addEventListener('click',function(){setTimeout(function(){note.textContent=savedNote},600)});
+    readyAll();
+  }
+  /* "Save all" works once every file is online */
+  function readyAll(){
+    var btn=document.getElementById('all');if(!btn)return;
+    var live=items.filter(function(it){return !it.gone});
+    if(live.length<2){btn.parentNode.remove();return}
+    if(!live.every(function(it){return it.ok}))return;
+    btn.removeAttribute('aria-disabled');
+    var note=document.getElementById('allNote');
+    btn.onclick=IOS?function(){share(live,note)}
+      :function(){live.forEach(function(it,i){setTimeout(function(){download(it)},450*i)});setTimeout(function(){note.textContent='Saved. Find them in your Gallery or Google Photos (in Downloads).'},450*live.length+400)};
+  }
+
+  /* The booth may still be uploading when the guest scans, so keep trying for a few minutes. */
+  items.forEach(function(it,i){
+    var fig=document.getElementById('f'+i),box=fig.querySelector('.media'),tries=0;
+    function load(){
+      var el=document.createElement(isVid(it.ext)?'video':'img');
+      if(el.tagName==='VIDEO'){el.muted=true;el.loop=true;el.autoplay=true;el.playsInline=true;el.setAttribute('playsinline','');el.controls=true}
+      else el.alt=it.label;
+      var ok=function(){box.innerHTML='';box.appendChild(el);it.ok=true;wire(it,fig);if(el.play)el.play().catch(function(){})};
+      var bad=function(){
+        tries++;
+        if(tries===1)box.querySelector('.wait').textContent='Still uploading from the booth… this page updates by itself.';
+        if(tries<40)setTimeout(load,Math.min(3000+tries*1000,15000));
+        else if(it.key!=='main'){fig.remove();it.gone=true;readyAll()}
+        else box.querySelector('.wait').textContent='This photo isn\'t online yet. Try this link again later.';
+      };
+      if(el.tagName==='VIDEO'){el.onloadeddata=ok;el.onerror=bad}else{el.onload=ok;el.onerror=bad}
+      el.src=it.url+(tries?'?t='+Date.now():'');
+    }
+    load();
+  });
+})();
+</script>
+</body>
+</html>

@@ -130,6 +130,7 @@ body.mgr tr.clk:hover td{background:none}
     </select>
     <span id="fCustom" hidden><input type="date" id="fFrom" aria-label="From"> – <input type="date" id="fTo" aria-label="To"></span>
     <a id="lnkDesign" href="editor.html" hidden title="Edit print templates and booth screens online" style="text-decoration:none"><button type="button">Design editor</button></a>
+    <a id="lnkSite" class="own" href="site-editor.html" hidden title="Edit the public website" style="text-decoration:none"><button type="button">Website editor</button></a>
     <span class="who" id="who" hidden></span>
     <button id="btnRefresh" title="Reload the figures">Refresh</button>
     <button id="btnOut" title="Sign out" hidden>Sign out</button>
@@ -464,6 +465,7 @@ function render(){
   $('#fCustom').hidden=$('#fRange').value!=='custom';
   renderOver();renderMoney();renderCmp();renderSessions();phInit();
   $('#lnkDesign').hidden=MODE==='local';
+  $('#lnkSite').hidden=MODE==='local';
   $('#stamp').textContent='Updated '+new Date().toLocaleTimeString()+' · '+(MODE==='local'?'from the booth laptop':'from Supabase')+' · refreshes every 30 seconds';
 }
 
@@ -712,6 +714,7 @@ function showLogin(msg,showCfg){
   $('#cloudFields').hidden=!cloud;$('#pinField').hidden=cloud;$('#forgotRow').hidden=!cloud;
   $('#cfgFields').hidden=cloud&&cfgOk()&&!showCfg; /* the project details are remembered: only asked the first time */
   $('#lnkDesign').hidden=!cloud;
+  $('#lnkSite').hidden=!cloud;
   $('#loginHint').textContent=cloud?'Sign in with your own email and password. Ask an owner if you don\'t have an account.':'Enter the staff PIN or password from the booth settings.';
   $('#cUrl').value=CFG.url||'';$('#cKey').value=CFG.key||'';
   $('#loginErr').textContent=msg||'';
