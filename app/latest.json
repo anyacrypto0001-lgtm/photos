@@ -1,10 +1,10 @@
 {
-    "app":  "2.2.0",
-    "db":  1,
+    "app":  "2.3.0",
+    "db":  2,
     "min_app":  "2.1.0",
-    "file":  "LePetique-2.2.0.zip",
-    "sha256":  "acbb0177e7319bf78c3c25f75b232e1b4c7f235a00e9300b726f120c5c9a9f0e",
-    "size":  214256,
+    "file":  "LePetique-2.3.0.zip",
+    "sha256":  "a220860bcd619586a4ca4a2e85703200cb78798d1c647f6d80abfbe0b5564a6b",
+    "size":  218152,
     "date":  "2026-11-26",
-    "notes":  "Download from the website and update inside the booth"
+    "notes":  "Choose your booth on the website: figures, designs, app updates and settings"
 }

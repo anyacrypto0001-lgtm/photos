@@ -10,7 +10,7 @@
 <meta name="theme-color" content="#141014">
 <title>Le Petique Online Editor</title>
 <script>window.LP_WEB=1</script><script src="config.js"></script>
-<script>window.LP_VERSION={app:'2.1.0',db:1,minApp:'2.1.0'}</script>
+<script>window.LP_VERSION={app:'2.3.0',db:2,minApp:'2.1.0'}</script>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23141014'/%3E%3Crect x='22' y='8' width='20' height='48' rx='2' fill='%23fbf5ef'/%3E%3Crect x='25' y='12' width='14' height='10' fill='%23ff5a7a'/%3E%3Crect x='25' y='25' width='14' height='10' fill='%23ff5a7a'/%3E%3Crect x='25' y='38' width='14' height='10' fill='%23ff5a7a'/%3E%3C/svg%3E">
 <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23141014'/%3E%3Crect x='22' y='8' width='20' height='48' rx='2' fill='%23fbf5ef'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -659,7 +659,7 @@ textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);borde
 
     <section class="spane" data-pane="booth" role="tabpanel" hidden>
       <fieldset><legend>Staff and idle</legend>
-        <label>Booth name (shown in the online editor, so you know which booth you're updating)<input data-k="boothName" type="text" maxlength="40" placeholder="Booth 1" autocomplete="off"></label>
+        <label>Booth name (give each booth its own: it's how you pick it on the website)<input data-k="boothName" type="text" maxlength="40" placeholder="Booth 1" autocomplete="off"></label>
         <label>Open settings with<select data-k="lockType"><option value="pin">A PIN (numbers only)</option><option value="password">A password (letters and numbers)</option></select></label>
         <label data-lock="pin">Staff PIN (4 to 8 numbers)<input data-k="pin" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off"></label>
         <label data-lock="password">Staff password (at least 4 characters)<input data-k="password" type="text" maxlength="40" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
@@ -670,7 +670,7 @@ textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);borde
         <p class="srv" id="updInfo"></p>
         <p class="srv" id="updDb" hidden></p>
         <div class="btnrow"><button id="updCheck" hidden>Check for updates</button><button class="go small" id="updGo" hidden>Update now</button><button class="go small" id="updRestart" hidden>Restart booth</button></div>
-        <p class="hint">A copy downloaded from GitHub says when a newer version is out. <b>Update now</b> downloads and builds it while the booth keeps working; nothing changes until you press <b>Restart booth</b>. A yellow dot on the settings button means an update is waiting or online uploads are paused.</p>
+        <p class="hint">The booth says when a newer version is out. <b>Update now</b> gets it while the booth keeps working; nothing changes until you press <b>Restart booth</b>. A yellow dot on the settings button means an update is waiting or online uploads are paused.</p>
       </fieldset>
       <fieldset id="winBox" hidden><legend>Booth window</legend>
         <label class="chk"><input type="checkbox" id="winFull"> Open full screen</label>
@@ -739,7 +739,7 @@ textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);borde
       <label>Password<input id="wPass" type="password" autocomplete="current-password" autocapitalize="off" spellcheck="false"></label>
       <button class="go" type="submit" id="wGo">Sign in</button>
     </form>
-    <div id="webPick" hidden><div id="webEvents"></div><button class="ghost" id="webOut">Sign out</button></div>
+    <div id="webPick" hidden><div class="mvchips" id="webBooths" aria-label="Booth" style="margin-bottom:12px;justify-content:center"></div><div id="webEvents"></div><button class="ghost" id="webOut">Sign out</button></div>
   </div>
 </div>
 <div id="webBar" hidden><a class="mini" id="webBack" href="analytics.html">← Analytics</a><b id="webName"></b><span id="webBooth" class="webbooth"></span><span id="webState" class="hint"></span>
@@ -4112,7 +4112,7 @@ async function statLoad(){if(STATQ)return;try{STATQ=(await idb.get('statq'))||[]
 function statPersist(){clearTimeout(statSaveT);statSaveT=setTimeout(()=>{idb.set('statq',STATQ).catch(()=>{})},500)}
 function track(type,d,o){
   if(LP_WEB)return;
-  const r={id:statId(),ts:Date.now(),event:String(S.eventName||'').slice(0,80),type,ses:(SES&&SES.id)||'',sid:'',d:d||{}};
+  const r={id:statId(),ts:Date.now(),event:String(S.eventName||'').slice(0,80),type,ses:(SES&&SES.id)||'',sid:'',d:d||{},booth:S.boothId||''};
   if(o)Object.assign(r,o);
   statLoad().then(()=>{STATQ.push(r);if(STATQ.length>3000)STATQ.splice(0,STATQ.length-3000);statPersist();clearTimeout(statFlushT);statFlushT=setTimeout(statFlush,1500)});
 }
@@ -4124,7 +4124,7 @@ async function statFlush(){
     /* the laptop and the online copy each take their own next 200, so one that is waiting never holds up the other */
     if(toLocal){const b=STATQ.filter(r=>!r.l).slice(0,200);if(b.length){try{const r=await fetch('/api/stats/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});if(r.ok){b.forEach(x=>x.l=1);more=STATQ.some(x=>!x.l)}}catch(e){}}}
     if(c&&await dbOk()){
-      const b=STATQ.filter(r=>!r.c).slice(0,200),row=x=>({id:x.id,ts:x.ts,event:x.event,type:x.type,ses:x.ses,sid:x.sid,d:x.d}),url=c.url+'/rest/v1/booth_events',hd=cloudHeaders(c,{'Content-Type':'application/json',Prefer:'return=minimal'});
+      const b=STATQ.filter(r=>!r.c).slice(0,200),row=x=>({id:x.id,ts:x.ts,event:x.event,type:x.type,ses:x.ses,sid:x.sid,d:x.d,booth:x.booth||S.boothId||null}),url=c.url+'/rest/v1/booth_events',hd=cloudHeaders(c,{'Content-Type':'application/json',Prefer:'return=minimal'});
       if(b.length){
         try{const r=await fetch(url,{method:'POST',headers:hd,body:JSON.stringify(b.map(row))});
           if(r.ok)b.forEach(x=>x.c=1);
@@ -4528,11 +4528,14 @@ function renderUpdates(){
   const el=$('#updInfo');if(!el)return;const u=UPD,go=$('#updGo'),rs=$('#updRestart');
   go.hidden=rs.hidden=true;$('#updCheck').hidden=!(u&&u.supported);
   let t=`<b>Version ${esc(LPV.app)}</b> · database ${LPV.db}`;
+  if(S.boothId)t+=`<br><small>Booth ID ${esc(S.boothId)}: how the website tells this booth apart.</small>`;
   if(!SERVER)t+='<br>Updates are checked on the booth laptop (LePetique.exe).';
-  else if(u&&!u.supported)t+=`<br>This copy can't update itself ${u.reason==='no-git'?'(Git isn\'t installed)':'(it wasn\'t cloned from GitHub)'}. To update by hand, get the newest files, then run source\\build.ps1.`;
-  else if(u&&u.state==='updating')t+='<br>Updating… this takes a minute. The booth keeps working.';
-  else if(u&&u.state==='ready'){t+=`<br><b>Updated to version ${esc(u.latest)}.</b> Restart the booth to finish.`;rs.hidden=false}
+  else if(u&&!u.supported)t+=u.reason==='no-git'?`<br>This copy can't update itself because Git isn't installed. Install Git, or download the app from the website instead.`
+    :`<br>This copy can't update itself. To get updates in the booth, download the app from the Le Petique website (or clone it with Git). Your settings and photos stay.`;
+  else if(u&&u.state==='updating')t+=u.source==='web'?'<br>Downloading the new version… The booth keeps working.':'<br>Updating… this takes a minute. The booth keeps working.';
+  else if(u&&u.state==='ready'){t+=`<br><b>Version ${esc(u.latest)} is ready.</b> Restart the booth to finish.`;rs.hidden=false}
   else if(updAvailable(u)){t+=`<br><span style="color:#ffcf6b">⚠ Update available${u.latest&&u.latest!==LPV.app?`: version ${esc(u.latest)}`:''}.</span>`;
+    if(u.notes)t+=`<br><small>What's new: ${esc(u.notes)}</small>`;
     if(u.dirty||u.ahead>0)t+=' This copy has its own changes, so update it by hand: git pull, then run source\\build.ps1.';else go.hidden=false}
   else if(u&&u.checking)t+='<br>Checking for updates…';
   else if(u&&u.checked&&!u.error)t+=' · up to date';
@@ -4841,8 +4844,8 @@ $('#openGallery').addEventListener('click',openGallery);
 $('#fsBtn').addEventListener('click',()=>{const d=document.documentElement;try{if(document.fullscreenElement||document.webkitFullscreenElement)(document.exitFullscreen||document.webkitExitFullscreen).call(document);
   else{const r=d.requestFullscreen||d.webkitRequestFullscreen;if(r)Promise.resolve(r.call(d)).catch(()=>toast('Full screen is not available here. On iPad, use Add to Home Screen.'));else toast('On iPad, use Share → Add to Home Screen for full screen.')}}catch(err){toast('Full screen is not available here')}});
 $('#resetBtn').addEventListener('click',e=>{const b=e.currentTarget;if(!b.dataset.armed){b.dataset.armed=1;b.textContent='Tap again to reset';return}
-  const keepEv=S.events,keepId=S.eventId;
-  S=JSON.parse(JSON.stringify(DEF));S.tpl={};S.tpls={};S.tplSel={};S.ui=deepMerge(DEF_UI,{});S.events=keepEv;S.eventId=keepId; /* other saved events survive a reset */
+  const keepEv=S.events,keepId=S.eventId,me={boothId:S.boothId,boothKey:S.boothKey}; /* a reset never turns this laptop into a new booth */
+  S=JSON.parse(JSON.stringify(DEF));S.tpl={};S.tpls={};S.tplSel={};S.ui=deepMerge(DEF_UI,{});S.events=keepEv;S.eventId=keepId;Object.assign(S,me); /* other saved events survive a reset */
   if(S.events&&S.events[S.eventId])S.events[S.eventId].stats=S.events[S.eventId].stats;ensureEvents();syncCustomFonts();syncCustomFilters();saveSettings();applyTheme();fillForm();toast('Settings reset')});
 function tplAssetKeys(T){const k=[tplKey(T,'bg'),tplKey(T,'ov')];(T.els||[]).forEach(e=>{if(e.type==='sticker')k.push('st_'+e.id)});return k}
 function assetKeys(){const k=new Set(['logo','ui_bg_start','ui_bg_pick','ui_bg_capture','ui_bg_share']);MODE_ORDER.forEach(m=>k.add('ui_card_'+m));
@@ -5116,7 +5119,7 @@ async function importDesignFile(f){
 }
 async function exportAll(){
   toast('Preparing backup…');saveSettings();
-  const data={app:'lepetique',type:'backup',version:4,date:new Date().toISOString(),settings:JSON.parse(JSON.stringify(S)),assets:await packAssets(assetKeys().concat(S.customFonts.map(f=>'font_'+f.id),S.customFilters.filter(f=>f.kind==='lut').map(f=>'lut_'+f.id),Object.keys(S.events||{}).filter(id=>id!==S.eventId).flatMap(id=>evPicKeys().map(k=>`ev_${id}:${k}`))))};
+  const data={app:'lepetique',type:'backup',version:4,date:new Date().toISOString(),settings:Object.assign(JSON.parse(JSON.stringify(S)),{boothId:undefined,boothKey:undefined}), /* a backup never carries this laptop's booth ID, so two laptops are never the same booth */assets:await packAssets(assetKeys().concat(S.customFonts.map(f=>'font_'+f.id),S.customFilters.filter(f=>f.kind==='lut').map(f=>'lut_'+f.id),Object.keys(S.events||{}).filter(id=>id!==S.eventId).flatMap(id=>evPicKeys().map(k=>`ev_${id}:${k}`))))};
   saveFile(new Blob([JSON.stringify(data)],{type:'application/json'}),`le-petique-backup-${stamp()}.json`);
 }
 let pendingImport=null;
@@ -5129,7 +5132,7 @@ async function chooseImport(f){
 async function applyImport(){
   const j=pendingImport;if(!j)return;$('#importGo').disabled=true;$('#importGo').textContent='Importing…';
   try{for(const [k,u] of Object.entries(j.assets||{})){try{await idb.set(k,await dataURLToBlob(u))}catch(e){}}
-    localStorage.setItem(LS_KEY,JSON.stringify(j.settings));toast('Backup imported. Restarting…');setTimeout(()=>location.reload(),700)}
+    localStorage.setItem(LS_KEY,JSON.stringify(Object.assign({},j.settings,{boothId:S.boothId,boothKey:S.boothKey}))); /* this laptop stays the same booth */toast('Backup imported. Restarting…');setTimeout(()=>location.reload(),700)}
   catch(e){toast('Import failed: '+(e.message||e));$('#importGo').disabled=false;$('#importGo').textContent='Replace everything'}
 }
 
@@ -5711,7 +5714,7 @@ const designSt=()=>{if(!S.designSync||typeof S.designSync!=='object')S.designSyn
   if(d.v!==2){d.v=2;Object.values(d.ev).forEach(r=>{delete r.sig})} /* v2: designs uploaded without their pictures (a bucket that refused PNG) are sent again */
   return d};
 const boothName=()=>String(S.boothName||'').trim().slice(0,40)||'Booth';
-const designSig=eid=>hashStr(JSON.stringify(designData(eid))+'|'+boothName())+(eid===S.eventId?':'+designRev:'');
+const designSig=eid=>hashStr(JSON.stringify(designData(eid))+'|'+boothName()+'|'+(S.boothId||''))+(eid===S.eventId?':'+designRev:'');
 async function designUp(c){
   const st=designSt();
   for(const eid of Object.keys(S.events||{})){
@@ -5721,7 +5724,7 @@ async function designUp(c){
     const pk=await designPack(c,eid),name=eid===S.eventId?(S.eventName||S.events[eid].name):S.events[eid].name,ts=Date.now();
     try{
       const r=await fetch(`${c.url}/rest/v1/booth_designs`,{method:'POST',headers:cloudHeaders(c,{'Content-Type':'application/json',Prefer:'return=minimal'}),
-        body:JSON.stringify({event_id:eid,name,data:pk.data,assets:pk.assets,ts,source:'booth',booth:boothName()})});
+        body:JSON.stringify({event_id:eid,name,data:pk.data,assets:pk.assets,ts,source:'booth',booth:boothName(),booth_id:boothIdentity().id})});
       if(!r.ok&&/booth/i.test(await r.clone().text().catch(()=>''))){ /* the SQL without the booth name column: send without it */
         const r2=await fetch(`${c.url}/rest/v1/booth_designs`,{method:'POST',headers:cloudHeaders(c,{'Content-Type':'application/json',Prefer:'return=minimal'}),
           body:JSON.stringify({event_id:eid,name,data:pk.data,assets:pk.assets,ts,source:'booth'})});if(r2.ok){rec.upTs=ts;rec.sig=sig;saveSettings();continue}}
@@ -5745,7 +5748,7 @@ async function designDownload(c,eid,assetsMap,have){
 function designIdle(){return screen==='attract'&&!busy&&!adminOpen&&!document.body.classList.contains('designing')&&$('#editor').hidden&&$('#pin').hidden}
 async function designDown(c){
   const st=designSt();
-  const r=await fetch(`${c.url}/rest/v1/rpc/designs_from_web`,{method:'POST',headers:cloudHeaders(c,{'Content-Type':'application/json'}),body:JSON.stringify({p_since:st.webTs})});
+  const r=await fetch(`${c.url}/rest/v1/rpc/booth_designs_from_web`,{method:'POST',headers:cloudHeaders(c,{'Content-Type':'application/json'}),body:JSON.stringify({p_since:st.webTs,p_booth:boothIdentity().id})}); /* versions saved for this booth */
   if(!r.ok)return;const rows=await r.json();if(!Array.isArray(rows)||!rows.length)return;
   rows.sort((a,b)=>a.ts-b.ts);
   for(const row of rows){
@@ -5783,6 +5786,92 @@ async function designSync(){
   try{await designUp(c);await designDown(c)}catch(e){console.warn('design sync',e)}finally{designBusy=false}
 }
 if(!LP_WEB){setInterval(designSync,20000);setTimeout(designSync,8000)}
+/* ---------- booths: each booth has its own ID, so the website can tell them apart and send one updates and settings ----------
+   Online delivery only. Every minute the booth says hello and asks for instructions. It acts only when nobody is using it
+   (start screen, Settings closed), and it never restarts itself: staff choose when. */
+const randomText=n=>{const b=new Uint8Array(n);crypto.getRandomValues(b);return Array.from(b,v=>SID_ABC[v%SID_ABC.length]).join('')};
+/* made once on this laptop and kept (also through Reset settings and backups). The key proves to the database that this really is that booth. */
+function boothIdentity(){
+  if(!/^[a-z0-9]{12}$/.test(S.boothId||'')||String(S.boothKey||'').length<32){S.boothId=randomText(12);S.boothKey=randomText(40);saveSettings()}
+  return{id:S.boothId,key:S.boothKey};
+}
+/* the ONLY settings the website may change (the form in guest-viewer/analytics.html shows the same list).
+   Never the PIN or password, online details, camera, printers, delivery or Wi-Fi. */
+const REMOTE_KEYS=[{k:'eventName',t:'text',max:60},{k:'eventSub',t:'text',max:80},
+  {k:'countdown',t:'num'},{k:'gifFrames',t:'num'},{k:'boomSec',t:'num',dec:1},{k:'videoSec',t:'num'},{k:'scribbleSec',t:'num'},{k:'idle',t:'num'},
+  {k:'sound',t:'bool'},{k:'mirror',t:'bool'},{k:'livePhoto',t:'bool'},{k:'photoGif',t:'bool'},
+  {k:'printMode',t:'one',of:['auto','direct','dialog']},{k:'printCopies',t:'num'},{k:'ui.share.btn.print',t:'bool'},{k:'ui.share.autoPrint',t:'bool'}];
+function remoteSnapshot(){
+  const o={modes:Object.fromEntries(MODE_ORDER.map(m=>[m,!!S.modes[m]]))};
+  REMOTE_KEYS.forEach(r=>{const v=getP(r.k);o[r.k]=r.t==='bool'?(r.k==='ui.share.btn.print'?v!==false:!!v):v});
+  return o;
+}
+/* applies what is allowed and in range, ignores everything else, and says what changed */
+function applyRemoteSettings(data){
+  const changed=[],before=remoteSnapshot();
+  REMOTE_KEYS.forEach(r=>{
+    if(!data||!Object.prototype.hasOwnProperty.call(data,r.k))return;let v=data[r.k];
+    if(r.t==='bool'){if(typeof v!=='boolean')return}
+    else if(r.t==='one'){if(!r.of.includes(v))return}
+    else if(r.t==='text'){if(typeof v!=='string'||(r.k==='eventName'&&!v.trim()))return;v=v.slice(0,r.max)}
+    else{v=Number(v);if(!isFinite(v))return;const[lo,hi]=RANGE[r.k]||[v,v];v=Math.min(hi,Math.max(lo,v));v=r.dec?Math.round(v*10)/10:Math.round(v)}
+    if(before[r.k]===v)return;setP(r.k,v);changed.push(r.k);
+  });
+  if(data&&isObj(data.modes)){
+    const next=Object.assign({},S.modes);MODE_ORDER.forEach(m=>{if(typeof data.modes[m]==='boolean')next[m]=data.modes[m]});
+    if(MODE_ORDER.some(m=>next[m])&&MODE_ORDER.some(m=>!!next[m]!==before.modes[m])){S.modes=next;changed.push('modes')} /* at least one mode stays on */
+  }
+  if(changed.length){if(changed.includes('eventName')&&S.events&&S.events[S.eventId])S.events[S.eventId].name=S.eventName;saveSettings();applyTheme();goAttract()}
+  return changed;
+}
+const updText=()=>!UPD?'':UPD.state==='ready'?'ready '+UPD.latest:UPD.state==='updating'?'updating':updAvailable(UPD)?'available '+(UPD.latest||''):'';
+let boothBusy=false,boothUpdating=false,boothErr='',boothUpdAt=0;
+async function boothRpc(c,fn,body){
+  const r=await fetch(`${c.url}/rest/v1/rpc/${fn}`,{method:'POST',headers:cloudHeaders(c,{'Content-Type':'application/json'}),body:JSON.stringify(body)});
+  const t=await r.text();if(!r.ok)throw new Error(`${fn} ${r.status} ${t.slice(0,150)}`);return t?JSON.parse(t):null;
+}
+const boothReport=(c,cmd,state,result)=>{const me=boothIdentity();return boothRpc(c,'booth_done',{p_id:me.id,p_key:me.key,p_cmd:cmd.id,p_state:state,p_result:String(result).slice(0,300)}).catch(e=>console.warn(e))};
+/* "Update app" from the website: the same as pressing Update now here. The new version waits until staff press Restart booth. */
+async function remoteUpdate(c,cmd){
+  boothUpdating=true;
+  const settle=async()=>{for(let i=0;i<300&&UPD&&(UPD.checking||UPD.state==='updating');i++){await wait(2000);await loadUpdates()}};
+  try{
+    await boothReport(c,cmd,'working','Checking for the new version…');
+    if(!SERVER)return await boothReport(c,cmd,'failed','This booth isn\'t running the Windows app, so it can\'t update itself.');
+    await loadUpdates(true);await settle();
+    if(!UPD||!UPD.supported)return await boothReport(c,cmd,'failed','This copy can\'t update itself.');
+    if(UPD.state!=='ready'){
+      if(!updAvailable(UPD))return await boothReport(c,cmd,UPD.error?'failed':'done',UPD.error||`Already up to date (version ${LPV.app}).`);
+      if(UPD.dirty||UPD.ahead>0)return await boothReport(c,cmd,'failed','This copy has its own changes: update it by hand.');
+      if(!(await updPost('/api/update')))return await boothReport(c,cmd,'failed','The booth could not start the update. Try Update now on the booth.');
+      await boothReport(c,cmd,'working','Downloading the new version…');
+      await loadUpdates();await settle();
+    }
+    if(UPD&&UPD.state==='ready'){warnDot();toast(`Version ${UPD.latest} is ready: restart the booth in Settings → Booth when convenient`);
+      return await boothReport(c,cmd,'done',`Version ${UPD.latest} is ready. It starts when someone presses Restart booth on the booth.`)}
+    await boothReport(c,cmd,'failed',(UPD&&UPD.error)||'The update did not finish.');
+  }finally{boothUpdating=false}
+}
+async function boothSync(){
+  if(LP_WEB||boothBusy||S.delivery!=='cloud'||!navigator.onLine)return;
+  const c=cloudCfg();if(!c)return;
+  if(!(await dbOk())||boothBusy)return;
+  boothBusy=true;
+  try{
+    if(SERVER&&Date.now()-boothUpdAt>600000){boothUpdAt=Date.now();await loadUpdates()}
+    const me=boothIdentity(),hello=()=>boothRpc(c,'booth_hello',{p_id:me.id,p_key:me.key,p_info:{name:boothName(),version:LPV.app,event:String(S.eventName||'').slice(0,80),update:updText(),settings:remoteSnapshot()}});
+    await hello();
+    for(const cmd of await boothRpc(c,'booth_poll',{p_id:me.id,p_key:me.key})||[]){
+      if(!designIdle())break; /* a guest or a settings screen is open: it waits for the next minute */
+      if(cmd.kind==='settings'){const done=applyRemoteSettings(cmd.data||{});if(done.length){toast('Settings updated from the website');await hello()}
+        await boothReport(c,cmd,'done',done.length?'Changed: '+done.map(k=>k.replace('ui.share.btn.print','print button').replace('ui.share.autoPrint','auto print')).join(', '):'Nothing needed changing.')}
+      else if(cmd.kind==='update'&&!boothUpdating)remoteUpdate(c,cmd); /* runs alongside, so the booth keeps saying hello */
+    }
+    boothErr='';
+  }catch(e){const m=String(e.message||e);if(m!==boothErr){boothErr=m;cloudLog('website link: '+m)}}
+  finally{boothBusy=false}
+}
+if(!LP_WEB){boothIdentity();setInterval(boothSync,60000);setTimeout(boothSync,12000)}
 /* ---------- wiring ---------- */
 $('#app').addEventListener('click',e=>{if(document.body.classList.contains('designing')){e.stopPropagation();e.preventDefault()}},true);
 $('#s-attract').addEventListener('click',e=>{if(document.body.classList.contains('designing'))return;if(!e.target.closest('#gear'))startFlow()});
@@ -5885,17 +5974,36 @@ if(LP_WEB){
   async function wme(){const me=await wrpc('staff_me');if(!me)throw new Error('noaccess');return me}
   const gate=(msg)=>{$('#webGate').hidden=false;$('#webBar').hidden=true;if(msg!=null)$('#webMsg').textContent=msg};
   const explain=e=>e.message==='pin'?'Please sign in again.':e.message==='login'?'Wrong email or password.':e.message==='noaccess'?'This account has not been given access yet. Ask an owner to add you.':e.message==='forbidden'?'You do not have permission for that.':e.message==='sql'?'Run the updated analytics.sql in Supabase first (it adds the sign-in functions).':(e.message||'Could not reach Supabase.');
+  /* choose a booth first: each booth's events are kept apart, even if two booths have the same event */
+  let webList=[],webBoothList=[],webSel='',curBooth='';
+  const boothNames=()=>{const m=new Map();webBoothList.forEach(b=>m.set(b.id,{name:b.name||'Booth',online:b.ago<180}));
+    webList.forEach(e=>{if(e.booth_id&&!m.has(e.booth_id))m.set(e.booth_id,{name:e.booth||'Booth',online:false})});
+    const seen={};m.forEach(v=>seen[v.name]=(seen[v.name]||0)+1);m.forEach((v,id)=>{if(seen[v.name]>1)v.name+=` (${id.slice(0,4)})`});return m};
+  const when=t=>new Date(t).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  function renderPick(){
+    const names=boothNames(),older=webList.some(e=>!e.booth_id);
+    if(webSel!=='all'&&webSel!=='none'&&!names.has(webSel))webSel='all';
+    const chips=[['all','All booths']].concat([...names].map(([id,v])=>[id,(v.online?'● ':'')+v.name]),older&&names.size?[['none','Older booths']]:[]);
+    $('#webBooths').innerHTML=names.size?chips.map(([id,t])=>`<button class="chip" data-wbooth="${esc(id)}" aria-pressed="${id===webSel}">${esc(t)}</button>`).join(''):'';
+    const list=webList.filter(e=>webSel==='all'||(webSel==='none'?!e.booth_id:e.booth_id===webSel));
+    gate(list.length?'Choose the event to edit.':webList.length?'This booth has no designs online yet. It sends them within a minute of being open with Online delivery.':'No designs are online yet. Open the booth with Online delivery set up (Settings → Sharing); it uploads its designs within a minute. Then reload this page.');
+    $('#webEvents').innerHTML=list.map(e=>{const bn=e.booth_id&&names.get(e.booth_id)?names.get(e.booth_id).name:e.booth||'';
+      return `<button class="mini webev" data-ev="${esc(e.event_id)}" data-bid="${esc(e.booth_id||'')}"><b>${esc(e.name||'Event')}</b><em>${bn?esc(bn)+' · ':''}${e.source==='web'?'edited online':'from the booth'} · ${when(e.ts)}</em></button>`}).join('');
+  }
   async function showEvents(){
     await wme();
-    const list=await wrpc('designs_list');
+    const[list,booths]=await Promise.all([wrpc('designs_list'),wrpc('booths_list').catch(()=>[])]);
+    webList=list||[];webBoothList=booths||[];
+    if(!webSel){const m=location.hash.match(/booth=([a-z0-9]+)/);webSel=m?m[1]:'all'} /* the analytics page's "Edit designs" button picks the booth */
     wrpc('schema_info').then(j=>{if(+j.db<LPV.db)toast('The database needs updating: run the latest analytics.sql in Supabase.');else if(+j.db>LPV.db)toast('This editor is older than the database: upload the newest editor.html to your website.')}).catch(()=>{});
-    $('#webLogin').hidden=true;$('#webPick').hidden=false;gate(list.length?'Choose the event to edit.':'No designs are online yet. Open the booth with Online delivery set up (Settings → Sharing); it uploads its designs within a minute. Then reload this page.');
-    $('#webEvents').innerHTML=list.map(e=>`<button class="mini webev" data-ev="${esc(e.event_id)}"><b>${esc(e.name||'Event')}</b><em>${e.booth?esc(e.booth)+' · ':''}${e.source==='web'?'edited online':'from the booth'} · ${new Date(e.ts).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</em></button>`).join('');
+    $('#webLogin').hidden=true;$('#webPick').hidden=false;renderPick();
   }
-  async function pickEvent(eid){
+  async function pickEvent(eid,bid){
     $('#webMsg').textContent='Loading the designs…';
     try{
-      const row=await wrpc('design_get',{p_event:eid}),d=row.data||{},bk=row.assets&&row.assets._bucket&&row.assets._bucket.p;
+      const row=await wrpc('design_get_for',{p_event:eid,p_booth:bid||''});if(!row)throw new Error('Those designs are no longer online. Choose again.');
+      curBooth=bid||'';
+      const d=row.data||{},bk=row.assets&&row.assets._bucket&&row.assets._bucket.p;
       if(bk&&/^[\w.-]+$/.test(bk))S.cloudBucket=bk; /* the bucket the booth uses */
       const c=cloudCfg();
       await idb.wipe();Object.keys(assets).forEach(k=>delete assets[k]);
@@ -5908,7 +6016,7 @@ if(LP_WEB){
       let missed=0;
       for(const [k,v] of Object.entries(row.assets||{})){if(k[0]==='_')continue;try{await idb.set(k,await fetchBlob(c,v.p,v.t))}catch(e){missed++}}
       await syncCustomFonts();await loadCustomFonts();saveSettings();await afterEventChange();
-      $('#webName').textContent=S.eventName||row.name||'Event';booth=row.booth||'';dirty=false;
+      const bn=boothNames().get(curBooth);$('#webName').textContent=S.eventName||row.name||'Event';booth=(bn&&bn.name)||row.booth||'';dirty=false;
       $('#webBooth').textContent=booth?'Updates: '+booth:'';
       $('#webState').textContent=`${row.source==='web'?'Last saved online':'From the booth'} ${new Date(row.ts).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}`;
       $('#webGate').hidden=true;$('#webBar').hidden=false;
@@ -5925,7 +6033,8 @@ if(LP_WEB){
     }catch(er){gate(explain(er));if(er.message==='noaccess')asave(null)}
     finally{$('#wGo').disabled=false}
   });
-  $('#webEvents').addEventListener('click',e=>{const b=e.target.closest('[data-ev]');if(b)pickEvent(b.dataset.ev)});
+  $('#webEvents').addEventListener('click',e=>{const b=e.target.closest('[data-ev]');if(b)pickEvent(b.dataset.ev,b.dataset.bid)});
+  $('#webBooths').addEventListener('click',e=>{const b=e.target.closest('[data-wbooth]');if(b){webSel=b.dataset.wbooth;renderPick()}});
   $('#webOut').addEventListener('click',()=>{asave(null);$('#webPick').hidden=true;$('#webLogin').hidden=false;gate('Signed out.')});
   $('#webSwitch').addEventListener('click',async()=>{
     if(dirty&&!confirm('You have changes that are not saved to the booth. Leave without saving?'))return;
@@ -5937,7 +6046,7 @@ if(LP_WEB){
     try{
       const c=cloudCfg();saveSettings();await snapshotEvent();
       const pk=await designPack(c,S.eventId);
-      await wrpc('design_save',{p_event:S.eventId,p_name:S.eventName||'Event',p_data:pk.data,p_assets:pk.assets});
+      await wrpc('design_save_for',{p_booth:curBooth,p_event:S.eventId,p_name:S.eventName||'Event',p_data:pk.data,p_assets:pk.assets});
       dirty=false;$('#webState').textContent='Saved '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})+'. '+(booth||'The booth')+' takes it over within a minute.';
       toast(pk.failed?`Saved, but ${pk.failed} picture${pk.failed===1?'':'s'} could not be uploaded`:'Saved to the booth');
     }catch(e){toast('Could not save: '+explain(e))}

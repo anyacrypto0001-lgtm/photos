@@ -58,6 +58,8 @@ tr.clk{cursor:pointer}
 tr.clk:hover td{background:var(--grid)}
 .badge{display:inline-block;font-size:12px;padding:1px 8px;border-radius:999px;border:1px solid currentColor}
 .good{color:var(--good)}.warn{color:var(--warn)}.bad{color:var(--bad)}
+.booth .badge{margin-right:6px}.bcmd{font-size:13px;margin-top:8px;border-top:1px solid var(--line);padding-top:8px}
+#boothDlg{max-height:90vh;overflow:auto;width:min(480px,calc(100vw - 24px))}#boothForm{display:grid;gap:10px}#boothForm label{display:grid;gap:4px;font-size:13px}#boothForm label.chk{display:flex;gap:8px;align-items:center;font-size:14px}#boothForm fieldset{border:1px solid var(--line);border-radius:10px;display:grid;gap:6px}
 #tip{position:fixed;z-index:50;pointer-events:none;background:var(--text);color:var(--bg);padding:5px 9px;border-radius:7px;font-size:13px;max-width:260px;display:none;white-space:pre-line}
 .login{max-width:380px;margin:12vh auto 0;padding:0 16px}
 .login .card{padding:22px}
@@ -123,6 +125,7 @@ body.mgr tr.clk:hover td{background:none}
 <header class="top"><div class="wrap">
   <div class="bar">
     <h1>Booth <span>Analytics</span></h1>
+    <select id="fBooth" aria-label="Booth" hidden></select>
     <select id="fEvent" aria-label="Event"></select>
     <select id="fRange" aria-label="Date range">
       <option value="all">All time</option><option value="today">Today</option><option value="7">Last 7 days</option>
@@ -141,6 +144,7 @@ body.mgr tr.clk:hover td{background:none}
     <button role="tab" data-tab="money" aria-selected="false">Events &amp; money</button>
     <button role="tab" data-tab="cmp" aria-selected="false">Compare</button>
     <button role="tab" data-tab="ses" aria-selected="false">Sessions</button>
+    <button role="tab" data-tab="booths" aria-selected="false" id="tabBooths" hidden>Booths</button>
     <button role="tab" data-tab="photos" aria-selected="false" id="tabPhotos" class="own" hidden>Online photos</button>
     <button role="tab" data-tab="people" aria-selected="false" id="tabPeople" class="own" hidden>People</button>
   </nav>
@@ -151,6 +155,7 @@ body.mgr tr.clk:hover td{background:none}
   <section id="tab-money" hidden></section>
   <section id="tab-cmp" hidden></section>
   <section id="tab-ses" hidden></section>
+  <section id="tab-booths" hidden></section>
   <section id="tab-photos" hidden></section>
   <section id="tab-people" hidden></section>
   <p class="hint" id="stamp" style="margin-top:18px"></p>
@@ -158,6 +163,7 @@ body.mgr tr.clk:hover td{background:none}
 </div>
 
 <dialog id="jobDlg"><form method="dialog" id="jobForm"></form></dialog>
+<dialog id="boothDlg"><form id="boothForm"></form></dialog>
 <div id="tip"></div>
 
 <script src="config.js"></script>
@@ -172,7 +178,7 @@ const MODE_NAMES={strip:'Photo strip',grid:'Grid',single:'Single',gif:'GIF',boom
 const modeName=m=>MODE_NAMES[m]||(m?m[0].toUpperCase()+m.slice(1):'Unknown');
 const STEPS={ready:'Camera screen',work:'Making the photo',review:'Results',attract:'Start screen',pick:'Choosing a mode',design:'Choosing a design',unknown:'Unknown'};
 
-let MODE='local',CFG={},PIN='',AUTH=null,ROLE='owner',DATA={events:[],jobs:[]},ALL=null,tab='over',timer=0,openedOnUse=false;
+let MODE='local',CFG={},PIN='',AUTH=null,ROLE='owner',DATA={events:[],jobs:[]},BOOTHS=[],BOOTH='',ALL=null,tab='over',timer=0,openedOnUse=false;
 const isOwner=()=>MODE==='local'||ROLE==='owner'; /* the laptop page is the owner's; online, the account's role decides */
 try{CFG=JSON.parse(store.get('an.cfg')||'{}')||{}}catch(e){CFG={}}
 /* config.js next to this page (uploaded once by the owner) holds the project address and public key, so nobody has to type them */
@@ -192,7 +198,7 @@ const ymd=t=>{const d=new Date(t),p=n=>String(n).padStart(2,'0');return d.getFul
 /* Online, everyone has their own Supabase account. The signed-in session is kept in this browser (an.auth), and the
    online editor on the same site reads the same one, so signing in once is enough. */
 /* is this page right for the database? (schema_info() in analytics.sql; LP_DB is what this page was written for. web\build.ps1 checks it against version.json) */
-var LP_DB=1;
+var LP_DB=2;
 async function dbNote(){
   var m='';
   try{var r=await fetch(CFG.url+'/rest/v1/rpc/schema_info',{method:'POST',headers:{apikey:CFG.key,Authorization:'Bearer '+CFG.key,'Content-Type':'application/json'},body:'{}'});
@@ -237,7 +243,7 @@ async function loadData(){
     const b=await fetch('/api/stats/jobs',{headers:h});
     DATA={events:(await a.json()).events||[],jobs:b.ok?((await b.json()).jobs||[]):[]};
   }else{
-    const j=await rpc('stats_read');DATA={events:j.events||[],jobs:j.jobs||[]};
+    const[j]=await Promise.all([rpc('stats_read'),loadBooths()]);DATA={events:j.events||[],jobs:j.jobs||[]};
   }
   ALL=build(DATA.events);
 }
@@ -254,7 +260,7 @@ function build(events){
   const get=k=>{let s=map.get(k);if(!s){s={id:k,ids:[],printOk:0,printFail:0,copies:0,saves:0,shares:0,qrShown:false,qrOpen:0,downloads:0,upFail:0,fails:[],printers:{}};map.set(k,s)}return s};
   for(const e of events){
     if(e.type==='walkaway'){walks.push(e);continue}
-    if(e.type==='event_use'){if(!inUse||e.ts>=inUse.ts)inUse=e;continue} /* the booth says which saved event it is using */
+    if(e.type==='event_use'){if(boothKeep(e.booth||'')&&(!inUse||e.ts>=inUse.ts))inUse=e;continue} /* the booth says which saved event it is using */
     const k=e.ses||bySid.get(e.sid);if(!k)continue;
     const s=get(k),d=e.d||{};s.ids.push(e.id);
     switch(e.type){
@@ -284,7 +290,8 @@ function build(events){
     s.retake=!!(s.end&&s.end.d&&s.end.d.why==='retake');
     return s;
   }).sort((a,b)=>a.ts-b.ts);
-  return{sessions,walks,inUse:inUse?String((inUse.d&&inUse.d.name)||inUse.event||''):''};
+  /* with a booth chosen, every tab shows only that booth's sessions */
+  return{sessions:sessions.filter(s=>boothKeep(s.start.booth||'')),walks:walks.filter(w=>boothKeep(w.booth||'')),inUse:inUse?String((inUse.d&&inUse.d.name)||inUse.event||''):''};
 }
 
 /* ---------- filters ---------- */
@@ -478,7 +485,7 @@ function render(){
   $('#fEvent').innerHTML='<option value="">All events</option>'+names.map(n=>`<option value="${esc(n)}">${esc(n)}${n===use?' (in use now)':''}</option>`).join('');
   $('#fEvent').value=names.includes(cur)?cur:'';
   $('#fCustom').hidden=$('#fRange').value!=='custom';
-  renderOver();renderMoney();renderCmp();renderSessions();phInit();
+  fillBooths();renderOver();renderMoney();renderCmp();renderSessions();renderBooths();phInit();
   $('#lnkDesign').hidden=MODE==='local';
   $('#lnkSite').hidden=MODE==='local';
   $('#stamp').textContent='Updated '+new Date().toLocaleTimeString()+' · '+(MODE==='local'?'from the booth laptop':'from Supabase')+' · refreshes every 30 seconds';
@@ -637,7 +644,8 @@ function download(name,text){const a=document.createElement('a');a.href=URL.crea
 function exportRecords(){
   const[a,b]=range(),ev=eventSel();
   const rows=[['Time','Event','Type','Session','Photo id','Details']];
-  DATA.events.filter(e=>e.ts>=a&&e.ts<=b&&(!ev||sameEv(e.event,ev))).forEach(e=>rows.push([new Date(e.ts).toISOString(),e.event,e.type,e.ses,e.sid,e.d?JSON.stringify(e.d):'']));
+  const mine=BOOTH?new Set([...ALL.sessions.flatMap(s=>s.ids),...ALL.walks.map(w=>w.id)]):null;
+  DATA.events.filter(e=>e.ts>=a&&e.ts<=b&&(!ev||sameEv(e.event,ev))&&(!mine||mine.has(e.id))).forEach(e=>rows.push([new Date(e.ts).toISOString(),e.event,e.type,e.ses,e.sid,e.d?JSON.stringify(e.d):'']));
   download('booth-records.csv',csv(rows));
 }
 function exportSummary(){
@@ -663,7 +671,7 @@ document.addEventListener('pointerleave',()=>{tip.style.display='none'});
 /* ---------- wiring ---------- */
 function showTab(t){
   tab=t;$$('nav.tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===t));
-  ['over','money','cmp','ses','photos','people'].forEach(k=>$('#tab-'+k).hidden=k!==t);
+  ['over','money','cmp','ses','booths','photos','people'].forEach(k=>$('#tab-'+k).hidden=k!==t);
   if(t==='people')renderPeople();
 }
 
@@ -692,6 +700,84 @@ async function peopleDo(fn,body,okText){
   try{await rpc(fn,body);await renderPeople();const m2=$('#pMsg');if(m2)m2.textContent=okText||''}
   catch(e){if(e.message==='pin')return fail(e);await renderPeople();const m2=$('#pMsg');if(m2)m2.textContent=niceErr(e)}
 }
+/* ---------- booths (online): pick one for every figure, and (owners) send it an app update or new settings ---------- */
+const boothKeep=id=>!BOOTH||(BOOTH==='none'?!id:id===BOOTH);
+const MODE_KEYS=['strip','gif','boom','scribble','video'];
+/* the same list as REMOTE_KEYS in the booth (web/js/booths.js): the booth ignores anything else, and checks the ranges itself */
+const BOOTH_FIELDS=[['eventName','Event name','text'],['eventSub','Tagline','text'],
+  ['countdown','Countdown (seconds)','num',1,10],['gifFrames','GIF frames','num',2,10],['boomSec','Boomerang length (seconds)','num',1,3,.1],['videoSec','Video message length (seconds)','num',5,60],
+  ['scribbleSec','Scribble time (seconds)','num',5,180],['idle','Return to start after (idle seconds)','num',15,600],
+  ['sound','Countdown beeps and shutter sound','bool'],['mirror','Mirror the live preview','bool'],['livePhoto','Live photo','bool'],['photoGif','Also make a GIF of the photos','bool'],
+  ['printMode','How to print','one',[['auto','Automatic'],['direct','Straight to the printer, no dialog'],['dialog','Show the print dialog']]],['printCopies','Copies per print','num',1,10],
+  ['ui.share.btn.print','Print button on the results screen','bool'],['ui.share.autoPrint','Print automatically','bool']];
+function boothLabels(){
+  const m=new Map();(BOOTHS||[]).forEach(b=>m.set(b.id,b.name||'Booth'));
+  DATA.events.forEach(e=>{if(e.booth&&!m.has(e.booth))m.set(e.booth,'Booth')});
+  const seen={};m.forEach(v=>seen[v]=(seen[v]||0)+1);m.forEach((v,id)=>{if(seen[v]>1||v==='Booth')m.set(id,`${v} (${id.slice(0,4)})`)});return m;
+}
+function fillBooths(){
+  const el=$('#fBooth'),m=boothLabels(),older=DATA.events.some(e=>!e.booth);
+  el.hidden=MODE==='local'||!m.size;
+  el.innerHTML='<option value="">All booths</option>'+[...m].map(([id,n])=>`<option value="${esc(id)}">${esc(n)}</option>`).join('')+(older&&m.size?'<option value="none">Older records (no booth ID)</option>':'');
+  el.value=BOOTH;if(el.value!==BOOTH){BOOTH='';el.value='';ALL=build(DATA.events)}
+}
+const ago=s=>s<90?'just now':s<5400?Math.round(s/60)+' minutes ago':s<172800?Math.round(s/3600)+' hours ago':Math.round(s/86400)+' days ago';
+const CMD_NAME={update:'App update',settings:'Settings'};
+function cmdLine(c){
+  const t={waiting:'waiting: the booth must be open and online',working:c.result||'working…',done:c.result||'done',failed:'did not work: '+(c.result||'')}[c.state]||c.state;
+  return `<div class="bcmd"><b>${CMD_NAME[c.kind]||esc(c.kind)}</b> <span class="${c.state==='failed'?'bad':c.state==='done'?'good':'warn'}">${esc(t)}</span> <span class="hint">${esc(new Date(c.created).toLocaleString([],{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}))}</span></div>`;
+}
+function renderBooths(){
+  const el=$('#tab-booths');if(!el||MODE==='local')return;
+  if(BOOTHS===null){el.innerHTML='<div class="card"><p class="empty">Run the latest analytics.sql in Supabase to see your booths here.</p></div>';return}
+  if(!BOOTHS.length){el.innerHTML='<div class="card"><p class="empty">No booths yet. A booth appears here within a minute of being open with Online delivery, on version 2.3.0 or newer.</p></div>';return}
+  const names=boothLabels();
+  el.innerHTML=`<p class="sub" style="margin:0 0 12px">A booth appears here once it runs version 2.3.0 or newer with Online delivery. Updates and settings arrive while the booth is open and nobody is using it. An update never restarts the booth: someone presses <b>Restart booth</b> on it when convenient.</p><div class="cards">`+
+    BOOTHS.map(b=>{const online=b.ago<180,up=String(b.update||''),busy=(b.commands||[]).some(c=>c.kind==='update'&&c.state==='working');
+      return `<div class="card booth"><h2 style="font-size:17px;color:var(--text)">${esc(names.get(b.id)||b.name||'Booth')}</h2>
+        <p class="sub"><span class="badge ${online?'good':'warn'}">${online?'Online':'Last seen '+esc(ago(b.ago))}</span> Version ${esc(b.version||'?')}${b.event?' · '+esc(b.event):''}<br><span class="hint">Booth ID ${esc(b.id)}</span></p>
+        ${up.startsWith('available')?`<p class="warn">Update available: ${esc(up.slice(10))}</p>`:up.startsWith('ready')?`<p class="warn">Version ${esc(up.slice(6))} is ready: press Restart booth on the booth.</p>`:up==='updating'?'<p class="warn">Updating…</p>':''}
+        <div class="toolbar"><button class="own primary" data-bupd="${esc(b.id)}" ${busy?'disabled':''}>Update app</button><button class="own" data-bset="${esc(b.id)}" ${b.settings&&Object.keys(b.settings).length?'':'disabled'}>Settings</button>
+          <a href="editor.html#booth=${esc(b.id)}" style="text-decoration:none"><button type="button">Edit designs</button></a><button class="own link" data-bforget="${esc(b.id)}">Forget</button></div>
+        ${(b.commands||[]).slice(0,3).map(cmdLine).join('')}</div>`}).join('')+'</div><p class="hint" id="boothMsg" role="status"></p>';
+}
+async function loadBooths(){if(MODE==='local')return;try{BOOTHS=await rpc('booths_list')||[]}catch(e){if(e.message==='pin')throw e;BOOTHS=null}}
+async function boothSend(id,kind,data,okText){
+  try{await rpc('booth_command',{p_booth:id,p_kind:kind,p_data:data});await loadBooths();renderBooths();const m=$('#boothMsg');if(m)m.textContent=okText}
+  catch(e){if(e.message==='pin')return fail(e);const m=$('#boothMsg');if(m)m.textContent=niceErr(e)}
+}
+const getPath=(o,k)=>o?o[k]:undefined; /* the booth reports its settings under these same keys */
+function openBoothSettings(id){
+  const b=(BOOTHS||[]).find(x=>x.id===id);if(!b)return;const S0=b.settings||{},dlg=$('#boothDlg'),f=$('#boothForm');
+  const field=([k,label,type,a,z,step])=>{const v=getPath(S0,k);
+    if(type==='bool')return `<label class="chk"><input type="checkbox" data-f="${k}" ${v?'checked':''}> ${label}</label>`;
+    if(type==='one')return `<label>${label}<select data-f="${k}">${a.map(([x,t])=>`<option value="${x}" ${x===v?'selected':''}>${t}</option>`).join('')}</select></label>`;
+    if(type==='num')return `<label>${label}<input type="number" data-f="${k}" min="${a}" max="${z}" step="${step||1}" value="${esc(v)}"></label>`;
+    return `<label>${label}<input type="text" data-f="${k}" maxlength="${k==='eventName'?60:80}" value="${esc(v)}"></label>`};
+  f.innerHTML=`<h2>Settings: ${esc(boothLabels().get(id)||b.name||'Booth')}</h2><p class="sub">Only what you change is sent. The booth applies it when it's open, online and not in use. The PIN, online details, camera, printers and Wi-Fi can only be changed on the booth.</p>
+    <fieldset><legend>Modes guests can pick</legend>${MODE_KEYS.map(m=>`<label class="chk"><input type="checkbox" data-bmode="${m}" ${(S0.modes||{})[m]?'checked':''}> ${esc(MODE_NAMES[m])}</label>`).join('')}</fieldset>
+    ${BOOTH_FIELDS.map(field).join('')}<p class="err" id="boothErr"></p><div class="toolbar"><button type="submit" class="primary">Send to booth</button><button type="button" data-bclose>Cancel</button></div>`;
+  f.onsubmit=async e=>{e.preventDefault();const data={},modes={};
+    f.querySelectorAll('[data-bmode]').forEach(c=>modes[c.dataset.bmode]=c.checked);
+    if(!MODE_KEYS.some(m=>modes[m])){$('#boothErr').textContent='Leave at least one mode on.';return}
+    if(MODE_KEYS.some(m=>modes[m]!==!!(S0.modes||{})[m]))data.modes=modes;
+    for(const [k,,type] of BOOTH_FIELDS){const inp=f.querySelector(`[data-f="${k}"]`),v=type==='bool'?inp.checked:type==='num'?Number(inp.value):inp.value;
+      if(type==='num'&&inp.value==='')continue;
+      if(v!==getPath(S0,k))data[k]=v}
+    dlg.close();
+    if(!Object.keys(data).length){const m=$('#boothMsg');if(m)m.textContent='Nothing was changed.';return}
+    await boothSend(id,'settings',data,'Sent. It is applied when the booth is open and not in use.')};
+  dlg.showModal();
+}
+document.addEventListener('click',e=>{const t=e.target.closest&&e.target.closest('[data-bupd],[data-bset],[data-bforget],[data-bclose]');if(!t)return;
+  if(t.hasAttribute('data-bclose'))return $('#boothDlg').close();
+  if(!isOwner())return;
+  if(t.dataset.bupd){const b=(BOOTHS||[]).find(x=>x.id===t.dataset.bupd);if(b&&confirm(`Tell ${boothLabels().get(b.id)||'this booth'} to download the newest version? It keeps working, and starts the new version only when someone presses Restart booth on it.`))boothSend(b.id,'update',{},'Sent. Watch its progress here.')}
+  else if(t.dataset.bset)openBoothSettings(t.dataset.bset);
+  else if(t.dataset.bforget){if(confirm('Remove this booth from the list? Its records and designs stay. If it is still in use, it appears again within a minute.'))(async()=>{try{await rpc('booth_forget',{p_booth:t.dataset.bforget});await loadBooths();if(BOOTH===t.dataset.bforget){BOOTH='';ALL=build(DATA.events)}render()}catch(er){const m=$('#boothMsg');if(m)m.textContent=niceErr(er)}})()}});
+$('#fBooth').addEventListener('change',e=>{BOOTH=e.target.value;ALL=build(DATA.events);render()});
+/* while you watch the Booths tab, check on it more often than the rest */
+setInterval(()=>{if(tab==='booths'&&MODE==='cloud'&&!document.hidden&&!$('#appView').hidden&&!$('#boothDlg').open)loadBooths().then(renderBooths).catch(()=>{})},10000);
 $$('nav.tabs button').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
 ['fEvent','fRange','fFrom','fTo'].forEach(id=>$('#'+id).addEventListener('change',render));
 $('#btnRefresh').onclick=async()=>{try{await loadData();render()}catch(e){fail(e)}};
@@ -740,7 +826,7 @@ function applyRole(me){
   const cloud=MODE==='cloud';
   $('#who').hidden=!cloud;$('#btnOut').hidden=!cloud;
   if(cloud)$('#who').textContent=(me&&me.email||'')+' · '+(isOwner()?'Owner':'Manager');
-  $('#tabPhotos').hidden=!cloud;$('#tabPeople').hidden=!cloud;
+  $('#tabPhotos').hidden=!cloud;$('#tabPeople').hidden=!cloud;$('#tabBooths').hidden=!cloud;
   if(!isOwner()&&(tab==='photos'||tab==='people'))showTab('over');
 }
 async function enter(){
@@ -750,7 +836,7 @@ async function enter(){
   }else{ROLE='owner';applyRole(null)}
   await loadData();
   $('#loginView').hidden=true;$('#pwView').hidden=true;$('#appView').hidden=false;render();
-  clearInterval(timer);timer=setInterval(()=>{if(!document.hidden&&!$('#jobDlg').open)loadData().then(render).catch(fail)},30000);
+  clearInterval(timer);timer=setInterval(()=>{if(!document.hidden&&!$('#jobDlg').open&&!$('#boothDlg').open)loadData().then(render).catch(fail)},30000);
 }
 function readCfg(){
   let u=$('#cUrl').value.trim().replace(/\/+$/,'').replace(/\/(rest|storage|auth)\/v1.*$/,'');if(/^[a-z0-9]{12,40}$/i.test(u))u='https://'+u+'.supabase.co';

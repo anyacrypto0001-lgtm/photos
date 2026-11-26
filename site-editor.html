@@ -124,7 +124,7 @@ function toast(m){var t=$('#toast');t.textContent=m;t.classList.add('on');clearT
 
 /* ---------- sign-in: the same Supabase session as the analytics page (an.auth) ---------- */
 /* is this page right for the database? (schema_info() in analytics.sql; LP_DB is what this page was written for. web\build.ps1 checks it against version.json) */
-var LP_DB=1;
+var LP_DB=2;
 async function dbNote(){
   var m='';
   try{var r=await fetch(CFG.url+'/rest/v1/rpc/schema_info',{method:'POST',headers:{apikey:CFG.key,Authorization:'Bearer '+CFG.key,'Content-Type':'application/json'},body:'{}'});
