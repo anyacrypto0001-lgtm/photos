@@ -191,6 +191,18 @@ const ymd=t=>{const d=new Date(t),p=n=>String(n).padStart(2,'0');return d.getFul
 /* ---------- data access: the booth laptop (local) or Supabase (online) ---------- */
 /* Online, everyone has their own Supabase account. The signed-in session is kept in this browser (an.auth), and the
    online editor on the same site reads the same one, so signing in once is enough. */
+/* is this page right for the database? (schema_info() in analytics.sql; LP_DB is what this page was written for. web\build.ps1 checks it against version.json) */
+var LP_DB=1;
+async function dbNote(){
+  var m='';
+  try{var r=await fetch(CFG.url+'/rest/v1/rpc/schema_info',{method:'POST',headers:{apikey:CFG.key,Authorization:'Bearer '+CFG.key,'Content-Type':'application/json'},body:'{}'});
+    if(r.ok){var j=await r.json();if(+j.db<LP_DB)m='The database is older than this page: run the latest analytics.sql in Supabase (SQL Editor).';else if(+j.db>LP_DB)m='This page is older than the database: upload the newest copy of this file to your website.'}
+    else if(r.status===404)m='The database is older than this page: run the latest analytics.sql in Supabase (SQL Editor).'}catch(e){return}
+  var el=document.getElementById('dbNote');
+  if(!m){if(el)el.remove();return}
+  if(!el){el=document.createElement('div');el.id='dbNote';el.setAttribute('role','alert');el.style.cssText='position:fixed;left:12px;right:12px;bottom:12px;z-index:99;background:#ffcf6b;color:#241a00;font:600 14px/1.4 system-ui,sans-serif;padding:12px 16px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.35)';document.body.appendChild(el)}
+  el.textContent='⚠ '+m;
+}
 const AUTHKEY='an.auth';
 function authLoad(){try{const a=JSON.parse(store.get(AUTHKEY)||'null');return a&&a.refresh?a:null}catch(e){return null}}
 function authSave(a){AUTH=a;if(a)store.set(AUTHKEY,JSON.stringify({access:a.access,refresh:a.refresh,exp:a.exp,email:a.email||''}));else store.del(AUTHKEY)}
@@ -734,7 +746,7 @@ function applyRole(me){
 async function enter(){
   if(MODE==='cloud'){
     const me=await rpc('staff_me');if(!me){authSave(null);throw new Error('noaccess')}
-    ROLE=me.role;if(AUTH)AUTH.email=me.email;applyRole(me);
+    ROLE=me.role;if(AUTH)AUTH.email=me.email;applyRole(me);dbNote();
   }else{ROLE='owner';applyRole(null)}
   await loadData();
   $('#loginView').hidden=true;$('#pwView').hidden=true;$('#appView').hidden=false;render();

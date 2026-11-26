@@ -10,6 +10,7 @@
 <meta name="theme-color" content="#141014">
 <title>Le Petique Online Editor</title>
 <script>window.LP_WEB=1</script><script src="config.js"></script>
+<script>window.LP_VERSION={app:'2.1.0',db:1,minApp:'2.1.0'}</script>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23141014'/%3E%3Crect x='22' y='8' width='20' height='48' rx='2' fill='%23fbf5ef'/%3E%3Crect x='25' y='12' width='14' height='10' fill='%23ff5a7a'/%3E%3Crect x='25' y='25' width='14' height='10' fill='%23ff5a7a'/%3E%3Crect x='25' y='38' width='14' height='10' fill='%23ff5a7a'/%3E%3C/svg%3E">
 <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23141014'/%3E%3Crect x='22' y='8' width='20' height='48' rx='2' fill='%23fbf5ef'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -57,6 +58,7 @@ body.designing #app{pointer-events:none;z-index:47;transform:translate(var(--dzx
 .screen{background-size:cover;background-position:center}
 .gear{position:absolute;right:max(14px,env(safe-area-inset-right));bottom:max(14px,env(safe-area-inset-bottom));width:48px;height:48px;border-radius:50%;display:grid;place-items:center;opacity:.35;background:rgba(0,0,0,.3)}
 .gear:hover{opacity:.8}
+.gear.warn{opacity:.8}.gear.warn::after{content:"";position:absolute;top:5px;right:5px;width:12px;height:12px;border-radius:50%;background:#ffcf6b}
 
 /* shared bar */
 .bar{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px}
@@ -663,6 +665,12 @@ textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);borde
         <label data-lock="password">Staff password (at least 4 characters)<input data-k="password" type="text" maxlength="40" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
         <p class="hint" id="lockHint"></p>
         <label>Return to start screen after this many idle seconds<input data-k="idle" type="number" min="15" max="600"></label>
+      </fieldset>
+      <fieldset id="updBox"><legend>About and updates</legend>
+        <p class="srv" id="updInfo"></p>
+        <p class="srv" id="updDb" hidden></p>
+        <div class="btnrow"><button id="updCheck" hidden>Check for updates</button><button class="go small" id="updGo" hidden>Update now</button><button class="go small" id="updRestart" hidden>Restart booth</button></div>
+        <p class="hint">A copy downloaded from GitHub says when a newer version is out. <b>Update now</b> downloads and builds it while the booth keeps working; nothing changes until you press <b>Restart booth</b>. A yellow dot on the settings button means an update is waiting or online uploads are paused.</p>
       </fieldset>
       <fieldset id="winBox" hidden><legend>Booth window</legend>
         <label class="chk"><input type="checkbox" id="winFull"> Open full screen</label>
@@ -4113,20 +4121,50 @@ async function statFlush(){
   const toLocal=!!SERVER,c=S.delivery==='cloud'?cloudCfg():null;if(!toLocal&&!c)return;
   statBusy=true;let more=false;
   try{
-    const batch=STATQ.slice(0,200);more=STATQ.length>200;
-    if(toLocal){const b=batch.filter(r=>!r.l);if(b.length){try{const r=await fetch('/api/stats/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});if(r.ok)b.forEach(x=>x.l=1)}catch(e){}}}
-    if(c){
-      const b=batch.filter(r=>!r.c),row=x=>({id:x.id,ts:x.ts,event:x.event,type:x.type,ses:x.ses,sid:x.sid,d:x.d}),url=c.url+'/rest/v1/booth_events',hd=cloudHeaders(c,{'Content-Type':'application/json',Prefer:'return=minimal'});
+    /* the laptop and the online copy each take their own next 200, so one that is waiting never holds up the other */
+    if(toLocal){const b=STATQ.filter(r=>!r.l).slice(0,200);if(b.length){try{const r=await fetch('/api/stats/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});if(r.ok){b.forEach(x=>x.l=1);more=STATQ.some(x=>!x.l)}}catch(e){}}}
+    if(c&&await dbOk()){
+      const b=STATQ.filter(r=>!r.c).slice(0,200),row=x=>({id:x.id,ts:x.ts,event:x.event,type:x.type,ses:x.ses,sid:x.sid,d:x.d}),url=c.url+'/rest/v1/booth_events',hd=cloudHeaders(c,{'Content-Type':'application/json',Prefer:'return=minimal'});
       if(b.length){
         try{const r=await fetch(url,{method:'POST',headers:hd,body:JSON.stringify(b.map(row))});
           if(r.ok)b.forEach(x=>x.c=1);
           else if(r.status===409){for(const x of b){const r2=await fetch(url,{method:'POST',headers:hd,body:JSON.stringify(row(x))});if(r2.ok||r2.status===409)x.c=1}} /* already there from an earlier try */
-          else if(!statLogged){statLogged=true;const tx=await r.text().catch(()=>'');cloudLog('analytics upload refused ('+r.status+'): '+tx.replace(/\s+/g,' ').slice(0,220))}}catch(e){}}}
+          else if(!statLogged){statLogged=true;const tx=await r.text().catch(()=>'');cloudLog('analytics upload refused ('+r.status+'): '+tx.replace(/\s+/g,' ').slice(0,220))}}catch(e){}
+        if(b.every(x=>x.c))more=more||STATQ.some(x=>!x.c)}}
     STATQ=STATQ.filter(r=>!((!toLocal||r.l)&&(!c||r.c)));statPersist();
   }finally{statBusy=false}
   if(more)setTimeout(statFlush,500);
 }
 setInterval(statFlush,20000);addEventListener('online',statFlush);
+
+/* ---------- is the online database right for this version of the booth? (schema_info() in analytics.sql) ----------
+   Several laptops can share one database. When this copy and the database don't match, nothing is sent online: records,
+   photos and designs wait on this laptop and go up once they match. No answer (no internet) blocks nothing. */
+const LPV=window.LP_VERSION||{app:'0.0.0',db:0};
+const DBV={block:'',at:0,key:'',busy:null};
+const verLess=(a,b)=>{const x=String(a).split('.').map(Number),y=String(b).split('.').map(Number);for(let i=0;i<3;i++)if((x[i]||0)!==(y[i]||0))return(x[i]||0)<(y[i]||0);return false};
+const DB_MSG={db:'Online uploads are paused: the online database needs updating (the owner runs the latest analytics.sql in Supabase). Photos, records and designs wait on this laptop until then.',
+  app:'Online uploads are paused: this booth app is older than the online database. Update it in Settings → Booth → About and updates. Photos, records and designs wait on this laptop until then.'};
+function dbSet(block){
+  const was=DBV.block;if(was===block)return;DBV.block=block;warnDot();if(adminOpen){renderCloud();renderUpdates()}
+  if(block)cloudLog(DB_MSG[block]);else if(was){cloudScan=true;setTimeout(()=>{syncCloud(true);statFlush();designSync()},0)} /* matched again: send what waited */
+}
+function dbCheck(force){
+  const c=!LP_WEB&&S.delivery==='cloud'?cloudCfg():null;if(!c){DBV.key='';dbSet('');return Promise.resolve()}
+  const key=c.url+' '+c.key;
+  if(DBV.key!==key){DBV.key=key;DBV.at=0;dbSet('')}
+  else if(!force&&Date.now()-DBV.at<(DBV.block?60000:600000))return Promise.resolve();
+  if(DBV.busy)return DBV.busy;
+  if(!navigator.onLine)return Promise.resolve();
+  DBV.busy=(async()=>{try{
+    const r=await fetch(c.url+'/rest/v1/rpc/schema_info',{method:'POST',headers:cloudHeaders(c,{'Content-Type':'application/json'}),body:'{}',signal:AbortSignal.timeout(10000)});
+    if(r.ok){const j=await r.json();DBV.at=Date.now();dbSet((+j.db||0)<LPV.db?'db':verLess(LPV.app,j.min_app)?'app':'')}
+    else if(r.status===404){const t=await r.text().catch(()=>'');if(/PGRST202|schema_info|could not find/i.test(t)){DBV.at=Date.now();dbSet('db')}} /* a database from before versions */
+  }catch(e){}finally{DBV.busy=null}})();
+  return DBV.busy;
+}
+const dbOk=async()=>{await dbCheck();return!DBV.block};
+setInterval(()=>dbCheck(),30000);
 function endSes(why){
   if(!SES||SES.ended)return;SES.ended=true;const total=Math.round((Date.now()-SES.t)/1000);
   if(!SES.shot)track('walkaway',{mode:SES.mode,step:screen});
@@ -4251,6 +4289,7 @@ function pushCloud(it){
 let cloudScan=true; /* false once a look at the gallery found nothing left to upload */
 async function syncCloud(force){
   if(!cloudCfg()||(!navigator.onLine&&!force))return 0;
+  if(!(await dbOk())){if(current&&current.cloud==='pending')setQrStatus(current,'wait');return 0} /* waiting for matching versions: the photos stay queued */
   if(cloudBusy){if(force)cloudAgain=true;return 0}
   if(!force&&!cloudScan&&!cloudLive.size)return 0; /* the last look found nothing waiting, and nothing new came since */
   cloudBusy=true;let n=0,left=false;
@@ -4339,7 +4378,9 @@ async function renderCloud(){
   if(n)parts.push(`<b>${n}</b> photo${n===1?' is':'s are'} waiting to upload.`);
   if(lastCloudErr)parts.push(`<span style="color:#ff9b9b">${esc(lastCloudErr)}</span>`);
   if(SERVER)parts.push(`Copies are also saved on this laptop in <b>${esc(SERVER.dir)}</b>.`);
-  el.className='srv'+(c&&!lastCloudErr?' on':'');el.innerHTML=parts.join('<br>');
+  if(DBV.block)parts.unshift(`<span style="color:#ffcf6b">⚠ ${DB_MSG[DBV.block]}</span>`);
+  el.className='srv'+(c&&!lastCloudErr&&!DBV.block?' on':'');el.innerHTML=parts.join('<br>');
+  dbCheck();
   if(!cloudTestUrl)$('#testQr').innerHTML='';
 }
 let cloudTestUrl='';
@@ -4467,7 +4508,44 @@ function showSettingsTab(t,focus){
 $('#snav').addEventListener('click',e=>{const b=e.target.closest('[data-st]');if(b)showSettingsTab(b.dataset.st)});
 $('#snav').addEventListener('keydown',e=>{const i=SETTINGS_TABS.indexOf(settingsTab),n=SETTINGS_TABS.length;
   const d={ArrowDown:1,ArrowRight:1,ArrowUp:-1,ArrowLeft:-1}[e.key];if(!d)return;e.preventDefault();showSettingsTab(SETTINGS_TABS[(i+d+n)%n],true)});
-function openAdmin(tab){adminOpen=true;fillForm();$('#admin').hidden=false;showSettingsTab(typeof tab==='string'?tab:settingsTab);listCams();listMics();syncCamera();detectServer().then(()=>{renderAnalytics();listCams();loadCanonSettings();loadPrinters().then(()=>{renderPrinting();refreshStatuses();loadDrivers()});loadWin();renderFolder()})}
+/* ---------- About and updates: a copy cloned from GitHub can update itself when staff ask (source/Updates.cs) ---------- */
+let UPD=null,updTimer=0;
+const updAvailable=u=>!!(u&&u.supported&&(u.behind>0||u.needsBuild)&&u.state!=='ready');
+/* the yellow dot on the staff settings button: an update is waiting, or online uploads are paused */
+function warnDot(){const g=$('#gear');if(g)g.classList.toggle('warn',!!(DBV.block||updAvailable(UPD)||(UPD&&UPD.state==='ready')))}
+async function loadUpdates(force){
+  if(LP_WEB||!SERVER)return renderUpdates();
+  try{const r=await fetch('/api/update'+(force?'?check=1':''),{cache:'no-store'});if(r.ok)UPD=await r.json()}catch(e){}
+  renderUpdates();warnDot();
+  clearTimeout(updTimer);if(UPD&&(UPD.checking||UPD.state==='updating'))updTimer=setTimeout(()=>loadUpdates(),2000);
+}
+async function updPost(path){
+  syncPin();
+  try{const r=await fetch(path,{method:'POST',headers:{'X-Pin':encodeURIComponent(lockSecret())}}),j=await r.json().catch(()=>({}));
+    if(!r.ok||!j.ok){toast(j.error||'That did not work');return false}return true}catch(e){toast('Could not reach the booth app');return false}
+}
+function renderUpdates(){
+  const el=$('#updInfo');if(!el)return;const u=UPD,go=$('#updGo'),rs=$('#updRestart');
+  go.hidden=rs.hidden=true;$('#updCheck').hidden=!(u&&u.supported);
+  let t=`<b>Version ${esc(LPV.app)}</b> · database ${LPV.db}`;
+  if(!SERVER)t+='<br>Updates are checked on the booth laptop (LePetique.exe).';
+  else if(u&&!u.supported)t+=`<br>This copy can't update itself ${u.reason==='no-git'?'(Git isn\'t installed)':'(it wasn\'t cloned from GitHub)'}. To update by hand, get the newest files, then run source\\build.ps1.`;
+  else if(u&&u.state==='updating')t+='<br>Updating… this takes a minute. The booth keeps working.';
+  else if(u&&u.state==='ready'){t+=`<br><b>Updated to version ${esc(u.latest)}.</b> Restart the booth to finish.`;rs.hidden=false}
+  else if(updAvailable(u)){t+=`<br><span style="color:#ffcf6b">⚠ Update available${u.latest&&u.latest!==LPV.app?`: version ${esc(u.latest)}`:''}.</span>`;
+    if(u.dirty||u.ahead>0)t+=' This copy has its own changes, so update it by hand: git pull, then run source\\build.ps1.';else go.hidden=false}
+  else if(u&&u.checking)t+='<br>Checking for updates…';
+  else if(u&&u.checked&&!u.error)t+=' · up to date';
+  if(u&&u.error)t+=`<br><span style="color:#ff9b9b">${esc(u.error)}</span>${u.log?`<br><small>${esc(u.log)}</small>`:''}`;
+  el.innerHTML=t;go.disabled=rs.disabled=busy;
+  const d=$('#updDb');d.hidden=!DBV.block;d.innerHTML=DBV.block?`<span style="color:#ffcf6b">⚠ ${DB_MSG[DBV.block]}</span>`:'';
+}
+$('#updCheck').addEventListener('click',()=>{loadUpdates(true);dbCheck(true)});
+$('#updGo').addEventListener('click',async()=>{if(!busy&&await updPost('/api/update'))loadUpdates()});
+$('#updRestart').addEventListener('click',async()=>{if(busy||!(await updPost('/api/update/restart')))return;
+  $('#updRestart').hidden=true;$('#updInfo').textContent='Restarting the booth… a new window opens in a few seconds.';setTimeout(()=>{try{window.close()}catch(e){}},2500)});
+
+function openAdmin(tab){adminOpen=true;fillForm();$('#admin').hidden=false;showSettingsTab(typeof tab==='string'?tab:settingsTab);listCams();listMics();syncCamera();renderUpdates();dbCheck(true);detectServer().then(()=>{loadUpdates();renderAnalytics();listCams();loadCanonSettings();loadPrinters().then(()=>{renderPrinting();refreshStatuses();loadDrivers()});loadWin();renderFolder()})}
 function camInfoText(){const t=stream&&stream.getVideoTracks()[0];return t&&cam.videoWidth?`Now using: ${canonActive()?'Canon over USB (live view; photos at full resolution)':t.label||'camera'} at ${cam.videoWidth}×${cam.videoHeight}.`:''}
 function renderFolder(){const b=$('#folderBox');if(!SERVER){b.hidden=true;return}b.hidden=false;
   $('#folderPath').innerHTML=`<b>${esc(SERVER.dir)}</b>${S.eventFolders?`\\${esc(slug(S.eventName))}`:''}\\<i>date</i>`;$('#folderPick').hidden=!(SERVER.features&&SERVER.features.print)}
@@ -5700,6 +5778,7 @@ async function designDown(c){
 async function designSync(){
   if(LP_WEB||designBusy||S.syncDesigns===false||!navigator.onLine)return;
   const c=cloudCfg();if(!c||!S.events||!S.eventId)return;
+  if(!(await dbOk())||designBusy)return; /* designs wait while the app and database versions don't match */
   designBusy=true;
   try{await designUp(c);await designDown(c)}catch(e){console.warn('design sync',e)}finally{designBusy=false}
 }
@@ -5762,7 +5841,7 @@ setInterval(()=>{const ra=+S.ui.share.returnAfter||0,lim=screen==='review'&&revi
 setInterval(()=>{if(screen==='attract'&&S.showDate)$('#aDate').textContent=dateStr()},60000);
 
 applyTheme();loadAssets().then(applyTheme);loadCachedFonts().then(()=>document.fonts.ready).then(applyTheme);loadCustomFonts().then(()=>document.fonts.ready).then(applyTheme);loadCustomLuts().then(()=>setFilter(filter));ensureEvents();trackEventUse();fontsReady();
-if(!LP_WEB){syncCamera();setInterval(syncCamera,3000);detectServer().then(()=>ensurePrinters());setTimeout(cacheFonts,6000);setTimeout(()=>syncCloud(false),4000)}
+if(!LP_WEB){syncCamera();setInterval(syncCamera,3000);detectServer().then(()=>{ensurePrinters();loadUpdates()});setTimeout(dbCheck,2000);setTimeout(cacheFonts,6000);setTimeout(()=>syncCloud(false),4000)}
 /* ---------- the online editor (editor.html = this page with LP_WEB set) ----------
    Sign in with the Supabase details and PIN, pick an event, edit its print templates and booth screens with the same
    editors the booth has, and Save to booth: the booth takes the new version over within about a minute. */
@@ -5809,6 +5888,7 @@ if(LP_WEB){
   async function showEvents(){
     await wme();
     const list=await wrpc('designs_list');
+    wrpc('schema_info').then(j=>{if(+j.db<LPV.db)toast('The database needs updating: run the latest analytics.sql in Supabase.');else if(+j.db>LPV.db)toast('This editor is older than the database: upload the newest editor.html to your website.')}).catch(()=>{});
     $('#webLogin').hidden=true;$('#webPick').hidden=false;gate(list.length?'Choose the event to edit.':'No designs are online yet. Open the booth with Online delivery set up (Settings → Sharing); it uploads its designs within a minute. Then reload this page.');
     $('#webEvents').innerHTML=list.map(e=>`<button class="mini webev" data-ev="${esc(e.event_id)}"><b>${esc(e.name||'Event')}</b><em>${e.booth?esc(e.booth)+' · ':''}${e.source==='web'?'edited online':'from the booth'} · ${new Date(e.ts).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</em></button>`).join('');
   }
