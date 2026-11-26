@@ -1,10 +1,10 @@
 {
-    "app":  "2.3.0",
+    "app":  "2.3.1",
     "db":  2,
     "min_app":  "2.1.0",
-    "file":  "LePetique-2.3.0.zip",
-    "sha256":  "a220860bcd619586a4ca4a2e85703200cb78798d1c647f6d80abfbe0b5564a6b",
-    "size":  218152,
+    "file":  "LePetique-2.3.1.zip",
+    "sha256":  "3bafce527cda7dd3ec51df0923f904abdb26c804763777d6ef583d220fa7d5fe",
+    "size":  221294,
     "date":  "2026-11-26",
-    "notes":  "Choose your booth on the website: figures, designs, app updates and settings"
+    "notes":  "DNP printer drivers can be downloaded straight from DNP in Settings \u003e Printing"
 }
