@@ -1,0 +1,10 @@
+{
+    "app":  "2.2.0",
+    "db":  1,
+    "min_app":  "2.1.0",
+    "file":  "LePetique-2.2.0.zip",
+    "sha256":  "acbb0177e7319bf78c3c25f75b232e1b4c7f235a00e9300b726f120c5c9a9f0e",
+    "size":  214256,
+    "date":  "2026-11-26",
+    "notes":  "Download from the website and update inside the booth"
+}
